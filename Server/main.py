@@ -10,6 +10,9 @@ def create_app():
     from routes.predict_forest import predict_forest_bp
     app.register_blueprint(predict_forest_bp)
 
+    from routes.add_fire import add_fire_bp
+    app.register_blueprint(add_fire_bp)
+
     @app.errorhandler(ValueError)
     
     def handle_value_error(e):

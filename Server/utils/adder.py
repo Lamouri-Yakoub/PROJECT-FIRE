@@ -7,10 +7,11 @@ def add_fire(fire):
 
     forest = fire["FORET"]
 
+    ctx = store.get_forest_context()
     # if forest already exists
-    if forest in store.forest_context.index:
+    if forest in ctx.index:
 
-        current_row = store.forest_context.loc[forest]
+        current_row = ctx.loc[forest].copy()
 
     else:
         # create new forest entry
@@ -32,16 +33,16 @@ def add_fire(fire):
             "SURF_TOTAL": 0,
         }
 
-        store.forest_context.loc[forest] = current_row
+        ctx.loc[forest] = current_row
 
-        current_row = store.forest_context.loc[forest]
+        current_row = ctx.loc[forest].copy()
 
     # update forest statistics
     updated_row = add_fire_forest(current_row, fire)
 
-    store.forest_context.loc[forest] = updated_row
+    ctx.loc[forest] = updated_row
 
-    store.save_forest_context()
+    store.save_forest_context(ctx)
 
 
 

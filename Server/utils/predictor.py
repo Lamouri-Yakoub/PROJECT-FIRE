@@ -5,9 +5,9 @@ import pandas as pd
 from utils.enginering import build_row
 
 from utils.store import (
-    model,
-    features,
-    forest_context,
+    get_model,
+    get_features,
+    get_forest_context,
     weather_cache,
     save_cache,
 )
@@ -21,22 +21,22 @@ def predict_top_forests(date, weather):
 
     rows = []
 
-    for forest in forest_context.index:
-        ctx = forest_context.loc[forest]
+    for forest in get_forest_context().index:
+        ctx = get_forest_context().loc[forest]
         row = build_row(date, weather, ctx, pd)
         rows.append(row)
 
     df_all = pd.concat(rows, ignore_index=True)
 
-    df_all = align_features(df_all, features)
+    df_all = align_features(df_all, get_features())
 
-    probs = model.predict_proba(df_all)[:, 1]
+    probs = get_model().predict_proba(df_all)[:, 1]
 
     results = []
 
-    for i, forest in enumerate(forest_context.index):
+    for i, forest in enumerate(get_forest_context().index):
         if(probs[i] >=0.5):
-            ctx = forest_context.loc[forest]
+            ctx = get_forest_context().loc[forest]
             results.append({
                 "forest": forest,
                 "daira": ctx.get("DAIRA"),
@@ -56,15 +56,15 @@ def predict_forest(forest, date=None, weather=None):
     if forest is None:
         raise ValueError("Forest is required")
 
-    if forest not in forest_context.index:
+    if forest not in get_forest_context().index:
         raise ValueError(f"No Data available for '{forest}' at the moment.")
 
-    ctx = forest_context.loc[forest]
+    ctx = get_forest_context().loc[forest]
 
     row = build_row(date, weather, ctx, pd)
-    row = align_features(row, features)
+    row = align_features(row, get_features())
 
-    proba = model.predict_proba(row)[0, 1]
+    proba = get_model().predict_proba(row)[0, 1]
 
     return {
         "forest": forest,
