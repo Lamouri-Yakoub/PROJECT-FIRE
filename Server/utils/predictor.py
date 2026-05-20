@@ -8,6 +8,7 @@ from utils.store import (
     get_model,
     get_features,
     get_forest_context,
+    get_forest_coordinates,
     weather_cache,
     save_cache,
 )
@@ -37,10 +38,13 @@ def predict_top_forests(date, weather):
     for i, forest in enumerate(get_forest_context().index):
         if(probs[i] >=0.5):
             ctx = get_forest_context().loc[forest]
+            lat, lon = get_forest_coordinates(forest)
             results.append({
                 "forest": forest,
                 "daira": ctx.get("DAIRA"),
                 "commune": ctx.get("COMMUNE"),
+                "latitude": lat,
+                "longitude": lon,
                 "risk": float(probs[i])
             })
 

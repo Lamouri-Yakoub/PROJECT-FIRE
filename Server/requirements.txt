@@ -1,0 +1,9 @@
+flask==3.1.1
+flask-cors==5.0.1
+flask-jwt-extended==4.7.1
+mysql-connector-python==9.3.0
+pandas
+joblib
+scikit-learn
+requests
+bcrypt==4.3.0
