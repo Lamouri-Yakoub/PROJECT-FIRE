@@ -158,7 +158,7 @@ ul { list-style: none; }
 .search-input:focus { border-color: var(--fire-orange); }
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th { padding: 14px 20px; text-align: left; font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.2); }
-.data-table td { padding: 14px 20px; font-size: 14px; border-bottom: 1px solid var(--border-color); }
+.data-table td { padding: 6px 12px; font-size: 14px; border-bottom: 1px solid var(--border-color); }
 .data-table tr:hover td { background: var(--bg-card-hover); }
 .data-table tr:last-child td { border-bottom: none; }
 

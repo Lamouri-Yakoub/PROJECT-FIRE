@@ -3,6 +3,24 @@ import { api } from '../api.js';
 import { showToast } from '../main.js';
 
 export function forestsPage(container) {
+  // Page States
+  let forests = [];      // paginated list
+  let allForests = [];   // full system list
+  let dairas = [];
+  let communes = [];
+  
+  // Maps states
+  let map = null;               // modal map
+  let marker = null;            // modal map marker
+  let allForestsMap = null;     // full system map
+  let allForestsMarkers = [];   // full system map markers group
+  let isEditing = false;
+
+  // Pagination states
+  let currentPage = 1;
+  const perPage = 10;
+  let totalForests = 0;
+
   const layout = document.createElement('div');
   layout.className = 'app-layout';
   renderSidebar(layout);
@@ -66,6 +84,16 @@ export function forestsPage(container) {
             <span id="page-indicator" style="font-size: 13px; color: var(--text-primary); font-weight: 600; padding: 0 8px;">Page 1</span>
             <button id="btn-next-page" class="btn-secondary" style="padding: 6px 14px; font-size: 13px; margin: 0;" disabled>Suivant</button>
           </div>
+        </div>
+      </div>
+
+      <!-- All Forests Map Container (Displays all system forests) -->
+      <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; margin-top: 24px; position: relative;">
+        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+          <span>🗺️</span> Carte de Distribution de Toutes les Forêts (${dairas.length > 0 ? 'Guelma' : 'Algérie'})
+        </h3>
+        <div id="all-forests-map-container" style="height: 480px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-color);">
+          <div id="all-forests-map" style="height: 100%; width: 100%;"></div>
         </div>
       </div>
     </div>
@@ -132,19 +160,6 @@ export function forestsPage(container) {
   layout.appendChild(main);
   container.appendChild(layout);
 
-  // Page States
-  let forests = [];
-  let dairas = [];
-  let communes = [];
-  let map = null;
-  let marker = null;
-  let isEditing = false;
-
-  // Pagination states
-  let currentPage = 1;
-  const perPage = 10;
-  let totalForests = 0;
-
   // DOM Elements
   const searchInput = document.getElementById('forest-search');
   const filterDaira = document.getElementById('filter-daira');
@@ -172,6 +187,11 @@ export function forestsPage(container) {
   const latInput = document.getElementById('forest-lat');
   const lonInput = document.getElementById('forest-lon');
 
+  // Register a global helper to handle edit trigger directly from Leaflet popups safely
+  window._editForestFromMap = (id) => {
+    editForest(id);
+  };
+
   // Initialize
   initPage();
 
@@ -193,9 +213,14 @@ export function forestsPage(container) {
       dairaSelect.innerHTML = '<option value="">Sélectionner</option>' +
         dairas.map(d => `<option value="${d._id}">${d.name}</option>`).join('');
 
-      // 3. Load forests and setup map
-      await loadForests();
+      // 3. Load forests and setup maps
+      await Promise.all([
+        loadForests(),
+        loadAllForests()
+      ]);
+      
       initLeafletMap();
+      initAllForestsMap();
       setupEventListeners();
     } catch (err) {
       showToast(err.message || 'Erreur lors du chargement des données', 'error');
@@ -203,7 +228,7 @@ export function forestsPage(container) {
   }
 
   function setupEventListeners() {
-    // Top filters changes (debounced search would be nice, but simple input works)
+    // Top filters changes
     let searchTimeout;
     searchInput.addEventListener('input', () => {
       clearTimeout(searchTimeout);
@@ -303,6 +328,16 @@ export function forestsPage(container) {
     }
   }
 
+  async function loadAllForests() {
+    try {
+      // Omit page parameters to fetch all forests in system for the geographic overview map
+      const res = await api.get('/forests');
+      allForests = res.forests || [];
+    } catch (err) {
+      console.error('Error loading all forests for overview map:', err);
+    }
+  }
+
   function renderForestsList() {
     if (forests.length === 0) {
       listBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-secondary); padding:32px;">Aucune forêt ne correspond aux critères</td></tr>`;
@@ -312,7 +347,7 @@ export function forestsPage(container) {
     listBody.innerHTML = forests.map(f => {
       const dName = f.daira && f.daira.name ? f.daira.name : 'N/A';
       const cName = f.commune && f.commune.name ? f.commune.name : 'N/A';
-      const coords = f.latitude && f.longitude ? `${f.latitude.toFixed(5)}, ${f.longitude.toFixed(5)}` : 'N/A';
+      const coords = f.latitude && f.longitude ? `${f.latitude.toFixed(3)}, ${f.longitude.toFixed(3)}` : 'N/A';
       const count = f.fire_count !== undefined ? f.fire_count : 0;
 
       return `
@@ -364,8 +399,20 @@ export function forestsPage(container) {
   function initLeafletMap() {
     if (!window.L) return;
 
-    // Centered at Guelma, Algeria
-    map = L.map('modal-map').setView([36.46, 7.43], 10);
+    // Bounding box for Wilaya of Guelma, Algeria
+    const guelmaBounds = L.latLngBounds(
+      [36.05, 6.95], // Southwest
+      [36.90, 7.90]  // Northeast
+    );
+
+    // Centered at Guelma, Algeria with strict bounds and minimum zoom
+    map = L.map('modal-map', {
+      maxBounds: guelmaBounds,
+      maxBoundsViscosity: 1.0,
+      minZoom: 9,
+      maxZoom: 18
+    }).setView([36.46, 7.43], 10);
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',
       maxZoom: 18,
@@ -373,9 +420,14 @@ export function forestsPage(container) {
 
     map.on('click', (e) => {
       const { lat, lng } = e.latlng;
-      latInput.value = lat.toFixed(6);
-      lonInput.value = lng.toFixed(6);
-      updateMarker(lat, lng);
+      // Ensure clicked point is inside Guelma bounds
+      if (guelmaBounds.contains(e.latlng)) {
+        latInput.value = lat.toFixed(6);
+        lonInput.value = lng.toFixed(6);
+        updateMarker(lat, lng);
+      } else {
+        showToast('Veuillez sélectionner un point situé à l\'intérieur de la wilaya de Guelma', 'error');
+      }
     });
 
     // Inputs update map marker
@@ -383,8 +435,11 @@ export function forestsPage(container) {
       const lat = parseFloat(latInput.value);
       const lon = parseFloat(lonInput.value);
       if (!isNaN(lat) && !isNaN(lon)) {
-        updateMarker(lat, lon);
-        map.setView([lat, lon], 12);
+        const point = L.latLng(lat, lon);
+        if (guelmaBounds.contains(point)) {
+          updateMarker(lat, lon);
+          map.setView([lat, lon], 12);
+        }
       }
     };
 
@@ -398,6 +453,113 @@ export function forestsPage(container) {
       marker.setLatLng([lat, lng]);
     } else {
       marker = L.marker([lat, lng]).addTo(map);
+    }
+  }
+
+  // Geographic Overview Map (under the table)
+  function initAllForestsMap() {
+    if (!window.L || !document.getElementById('all-forests-map')) return;
+
+    // Bounding box for Wilaya of Guelma, Algeria
+    const guelmaBounds = L.latLngBounds(
+      [36.05, 6.95], // Southwest
+      [36.90, 7.90]  // Northeast
+    );
+
+    // Center on Guelma region with strict bounds and zoom boundaries
+    allForestsMap = L.map('all-forests-map', {
+      maxBounds: guelmaBounds,
+      maxBoundsViscosity: 1.0,
+      minZoom: 9,
+      maxZoom: 18
+    }).setView([36.46, 7.43], 10);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 18,
+    }).addTo(allForestsMap);
+
+    renderAllForestsMarkers();
+  }
+
+  function renderAllForestsMarkers() {
+    if (!allForestsMap || !window.L) return;
+
+    // Remove existing markers
+    allForestsMarkers.forEach(m => allForestsMap.removeLayer(m));
+    allForestsMarkers = [];
+
+    // Group forests by coordinates (rounded to 5 decimals for stability)
+    const groups = {};
+    allForests.forEach(f => {
+      if (f.latitude && f.longitude) {
+        const key = `${f.latitude.toFixed(5)}_${f.longitude.toFixed(5)}`;
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(f);
+      }
+    });
+
+    // Render a marker for each coordinate group
+    Object.keys(groups).forEach(key => {
+      const group = groups[key];
+      const firstForest = group[0];
+      const { latitude, longitude } = firstForest;
+
+      // Marker color determined by the maximum fire count in the group
+      const maxCount = Math.max(...group.map(f => f.fire_count || 0));
+      const markerColor = maxCount > 5 ? 'red' : maxCount > 2 ? 'orange' : maxCount > 0 ? 'yellow' : 'green';
+
+      const popupHTML = `
+        <div style="font-family: var(--font-family, sans-serif); color: #222; padding: 4px; min-width: 190px; max-width: 250px; max-height: 250px; overflow-y: auto;">
+          ${group.map((f, index) => {
+            const dName = f.daira && f.daira.name ? f.daira.name : 'N/A';
+            const cName = f.commune && f.commune.name ? f.commune.name : 'N/A';
+            const count = f.fire_count !== undefined ? f.fire_count : 0;
+
+            return `
+              <div style="${index > 0 ? 'margin-top: 12px; padding-top: 12px; border-top: 1px dashed #ccc;' : ''}">
+                <h4 style="margin: 0 0 4px 0; color: #111; font-weight: 700; font-size: 13px; text-transform: uppercase;">🌲 ${f.name}</h4>
+                <p style="margin: 2px 0; font-size: 11px;"><strong>Daïra:</strong> ${dName}</p>
+                <p style="margin: 2px 0; font-size: 11px;"><strong>Commune:</strong> ${cName}</p>
+                <p style="margin: 4px 0 6px 0; font-size: 11px; display: flex; align-items: center; gap: 6px;">
+                  <strong>Foyers:</strong>
+                  <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: ${
+                    count > 5 ? '#e63946' : count > 2 ? '#ff6b35' : count > 0 ? '#ffd166' : '#06d6a0'
+                  }; color: ${count > 2 ? '#fff' : '#111'}; font-size: 9px;">
+                    ${count} ${count > 1 ? 'incendies' : 'incendie'}
+                  </span>
+                </p>
+                <button onclick="window._editForestFromMap('${f.id || f._id}')" style="background: var(--fire-orange, #ff6b35); color: #fff; border: none; border-radius: 4px; padding: 6px 10px; font-size: 10px; cursor: pointer; font-weight: 600; width: 100%; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                  ✏️ Modifier la Forêt
+                </button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+
+      const markerIcon = L.icon({
+        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${markerColor}.png`,
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+      });
+
+      const m = L.marker([latitude, longitude], { icon: markerIcon })
+        .addTo(allForestsMap)
+        .bindPopup(popupHTML);
+
+      allForestsMarkers.push(m);
+    });
+
+    // Fit map bounds to show all markers beautifully
+    if (allForestsMarkers.length > 0) {
+      const group = new L.featureGroup(allForestsMarkers);
+      allForestsMap.fitBounds(group.getBounds().pad(0.1));
     }
   }
 
@@ -447,7 +609,7 @@ export function forestsPage(container) {
   }
 
   function editForest(id) {
-    const forest = forests.find(f => (f.id || f._id) === id);
+    const forest = allForests.find(f => (f.id || f._id) === id) || forests.find(f => (f.id || f._id) === id);
     if (!forest) return;
 
     idInput.value = id;
@@ -466,7 +628,7 @@ export function forestsPage(container) {
   }
 
   async function deleteForest(id) {
-    const forest = forests.find(f => (f.id || f._id) === id);
+    const forest = allForests.find(f => (f.id || f._id) === id) || forests.find(f => (f.id || f._id) === id);
     if (!forest) return;
 
     if (!confirm(`Voulez-vous vraiment supprimer la forêt "${forest.name}" ?`)) {
@@ -477,8 +639,12 @@ export function forestsPage(container) {
       await api.del(`/forests/${id}`);
       showToast('Forêt supprimée avec succès !', 'success');
 
-      // Refresh current page
-      await loadForests();
+      // Refresh list & system-wide overview map
+      await Promise.all([
+        loadForests(),
+        loadAllForests()
+      ]);
+      renderAllForestsMarkers();
     } catch (err) {
       showToast(err.message || 'Erreur lors de la suppression', 'error');
     }
@@ -506,7 +672,12 @@ export function forestsPage(container) {
         currentPage = 1; // Go back to page 1 on new add
       }
 
-      await loadForests();
+      // Refresh page and all forests map
+      await Promise.all([
+        loadForests(),
+        loadAllForests()
+      ]);
+      renderAllForestsMarkers();
       closeModal();
     } catch (err) {
       showToast(err.message || "Erreur lors de l'enregistrement", 'error');
