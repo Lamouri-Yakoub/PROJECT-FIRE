@@ -3,6 +3,7 @@ import { navigate, currentPath } from '../router.js';
 
 const NAV_ITEMS = [
   { path: '/dashboard', icon: '🗺️', label: 'Tableau de bord' },
+  { path: '/forests', icon: '🌲', label: 'Forêts' },
   { path: '/prediction', icon: '🔮', label: 'Prédiction' },
   { path: '/history', icon: '📜', label: 'Historique' },
   { path: '/add-fire', icon: '➕', label: 'Ajouter Incendie' },

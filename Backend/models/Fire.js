@@ -1,11 +1,7 @@
 const mongoose = require('mongoose');
 
 const fireSchema = new mongoose.Schema({
-  forest_name: { type: String, required: true },
-  daira: { type: String, default: '' },
-  commune: { type: String, default: '' },
-  latitude: { type: Number, default: null },
-  longitude: { type: Number, default: null },
+  forest: { type: mongoose.Schema.Types.ObjectId, ref: 'Forest', required: true },
   fire_date: { type: String, required: true }, // Format YYYY-MM-DD
   surface_burned: { type: Number, default: 0 },
   cause: { type: String, default: 'Unknown' },

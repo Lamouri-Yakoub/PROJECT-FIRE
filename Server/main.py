@@ -6,9 +6,6 @@ from flask_jwt_extended import JWTManager
 
 CLIENT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Client')
 
-# Global flag: is MySQL available?
-DB_AVAILABLE = False
-
 
 def create_app():
     app = Flask(__name__)
@@ -20,22 +17,7 @@ def create_app():
 
     JWTManager(app)
 
-    # ---- Register blueprints ----
-
-    from routes.auth import auth_bp
-    app.register_blueprint(auth_bp)
-
-    from routes.fires import fires_bp
-    app.register_blueprint(fires_bp)
-
-    from routes.weather_route import weather_bp
-    app.register_blueprint(weather_bp)
-
-    from routes.users import users_bp
-    app.register_blueprint(users_bp)
-
-    from routes.forests_route import forests_bp
-    app.register_blueprint(forests_bp)
+    # ---- Register AI prediction blueprints ----
 
     from routes.predict_top import predict_bp
     app.register_blueprint(predict_bp)
@@ -81,19 +63,9 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    from utils.db import init_db
-    try:
-        init_db()
-        DB_AVAILABLE = True
-        print("[OK] Database initialized successfully")
-    except Exception as e:
-        print(f"[WARN] Database init failed: {e}")
-        print("       The app will run but auth/fires features need MySQL.")
-        print("       Start MySQL and restart the server to enable all features.")
-
     print("")
-    print("=== FireGuard Server ===")
+    print("=== FireGuard AI Prediction Microservice ===")
     print("  URL: http://localhost:5001")
-    print("========================")
+    print("===========================================")
     print("")
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5001)

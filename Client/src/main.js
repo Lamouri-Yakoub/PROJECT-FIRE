@@ -5,6 +5,7 @@ import { predictionPage } from './pages/prediction.js';
 import { historyPage } from './pages/history.js';
 import { addfirePage } from './pages/addfire.js';
 import { settingsPage } from './pages/settings.js';
+import { forestsPage } from './pages/forests.js';
 
 // Toast utility
 export function showToast(message, type = 'success') {
@@ -24,6 +25,7 @@ export function showToast(message, type = 'success') {
 // Register all routes
 registerRoute('/', loginPage);
 registerRoute('/dashboard', dashboardPage);
+registerRoute('/forests', forestsPage);
 registerRoute('/prediction', predictionPage);
 registerRoute('/history', historyPage);
 registerRoute('/add-fire', addfirePage);

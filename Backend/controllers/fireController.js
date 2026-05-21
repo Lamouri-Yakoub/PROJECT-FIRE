@@ -1,5 +1,8 @@
 const axios = require('axios');
 const Fire = require('../models/Fire');
+const Forest = require('../models/Forest');
+const Daira = require('../models/Daira');
+const Commune = require('../models/Commune');
 
 // GET /api/fires
 exports.getFires = async (req, res) => {
@@ -12,11 +15,21 @@ exports.getFires = async (req, res) => {
 
     if (search) {
       const match = { $regex: search, $options: 'i' };
-      filter.$or = [
-        { forest_name: match },
-        { daira: match },
-        { commune: match }
-      ];
+      // Find matching dairas and communes by name
+      const matchedDairas = await Daira.find({ name: match });
+      const matchedCommunes = await Commune.find({ name: match });
+      const matchedDairaIds = matchedDairas.map(d => d._id);
+      const matchedCommuneIds = matchedCommunes.map(c => c._id);
+      // Find forests matching name, or linked daira/commune
+      const matchedForests = await Forest.find({
+        $or: [
+          { name: match },
+          { daira: { $in: matchedDairaIds } },
+          { commune: { $in: matchedCommuneIds } }
+        ]
+      });
+      const matchedForestIds = matchedForests.map(f => f._id);
+      filter.forest = { $in: matchedForestIds };
     }
 
     if (date_from || date_to) {
@@ -27,24 +40,25 @@ exports.getFires = async (req, res) => {
 
     const total = await Fire.countDocuments(filter);
     const fires = await Fire.find(filter)
+      .populate({ path: 'forest', populate: [{ path: 'daira' }, { path: 'commune' }] })
       .sort({ fire_date: -1 })
       .skip((page - 1) * perPage)
       .limit(perPage);
 
     const formattedFires = fires.map(f => ({
       id: f._id,
-      forest_name: f.forest_name,
-      daira: f.daira,
-      commune: f.commune,
-      latitude: f.latitude,
-      longitude: f.longitude,
+      forest_name: f.forest ? f.forest.name : 'Unknown',
+      daira: f.forest && f.forest.daira ? f.forest.daira.name : '',
+      commune: f.forest && f.forest.commune ? f.forest.commune.name : '',
+      latitude: f.forest ? f.forest.latitude : null,
+      longitude: f.forest ? f.forest.longitude : null,
       fire_date: f.fire_date,
       surface_burned: f.surface_burned,
       cause: f.cause,
       severity: f.severity,
       notes: f.notes,
       created_by: f.created_by,
-      created_at: f.created_at.toISOString()
+      created_at: f.created_at ? f.created_at.toISOString() : new Date().toISOString()
     }));
 
     return res.json({
@@ -78,15 +92,49 @@ exports.createFire = async (req, res) => {
       return res.status(400).json({ error: 'forest_name and fire_date are required' });
     }
 
-    // 1) Save to MongoDB
+    const upperForestName = forest_name.toUpperCase().trim();
+
+    // Find or create Forest matching the forest_name
+    let forestDoc = await Forest.findOne({ name: upperForestName });
+    if (!forestDoc) {
+      // Resolve daira and commune ObjectIds
+      let dairaId = null;
+      let communeId = null;
+      if (daira) {
+        const upperDaira = daira.toUpperCase().trim();
+        let dairaDoc = await Daira.findOne({ name: upperDaira });
+        if (!dairaDoc) {
+          dairaDoc = new Daira({ name: upperDaira });
+          await dairaDoc.save();
+        }
+        dairaId = dairaDoc._id;
+
+        if (commune) {
+          const upperCommune = commune.toUpperCase().trim();
+          let communeDoc = await Commune.findOne({ name: upperCommune });
+          if (!communeDoc) {
+            communeDoc = new Commune({ name: upperCommune, daira: dairaId });
+            await communeDoc.save();
+          }
+          communeId = communeDoc._id;
+        }
+      }
+
+      forestDoc = new Forest({
+        name: upperForestName,
+        daira: dairaId,
+        commune: communeId,
+        latitude: latitude !== undefined ? latitude : null,
+        longitude: longitude !== undefined ? longitude : null
+      });
+      await forestDoc.save();
+    }
+
+        // 1) Save to MongoDB
     const newFire = new Fire({
-      forest_name,
-      daira: daira || '',
-      commune: commune || '',
-      latitude: latitude !== undefined ? latitude : null,
-      longitude: longitude !== undefined ? longitude : null,
+      forest: forestDoc._id,
       fire_date,
-      surface_burned: surface_burned !== undefined ? surface_burned : 0,
+      surface_burned: surface_burned !== undefined ? parseFloat(surface_burned) : 0,
       cause: cause || 'Unknown',
       severity: severity || 'medium',
       notes: notes || '',
@@ -136,8 +184,26 @@ exports.getStats = async (req, res) => {
 
     // top_zone (daira with highest count)
     const topZoneGroup = await Fire.aggregate([
-      { $match: { daira: { $ne: '' } } },
-      { $group: { _id: '$daira', cnt: { $sum: 1 } } },
+      {
+        $lookup: {
+          from: 'forests',
+          localField: 'forest',
+          foreignField: '_id',
+          as: 'forest_info'
+        }
+      },
+      { $unwind: '$forest_info' },
+      { $match: { 'forest_info.daira': { $ne: null } } },
+      {
+        $lookup: {
+          from: 'dairas',
+          localField: 'forest_info.daira',
+          foreignField: '_id',
+          as: 'daira_info'
+        }
+      },
+      { $unwind: '$daira_info' },
+      { $group: { _id: '$daira_info.name', cnt: { $sum: 1 } } },
       { $sort: { cnt: -1 } },
       { $limit: 1 }
     ]);
@@ -155,15 +221,14 @@ exports.getStats = async (req, res) => {
     });
 
     // heatmap coordinates
-    const heatmapFires = await Fire.find({
-      latitude: { $ne: null },
-      longitude: { $ne: null }
-    });
-    const heatmap = heatmapFires.map(f => ({
-      lat: f.latitude,
-      lng: f.longitude,
-      intensity: f.surface_burned || 1
-    }));
+    const heatmapFires = await Fire.find({}).populate('forest');
+    const heatmap = heatmapFires
+      .filter(f => f.forest && f.forest.latitude !== null && f.forest.longitude !== null)
+      .map(f => ({
+        lat: f.forest.latitude,
+        lng: f.forest.longitude,
+        intensity: f.surface_burned || 1
+      }));
 
     return res.json({
       total,
