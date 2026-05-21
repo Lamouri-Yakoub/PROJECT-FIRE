@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import requests
 from collections import Counter
 import pandas as pd
-from utils.enginering import build_row
+from utils.engineering import build_row
 
 from utils.store import (
     get_model,
