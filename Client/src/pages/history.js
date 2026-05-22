@@ -1,6 +1,7 @@
 import { renderSidebar } from '../components/sidebar.js';
 import { api } from '../api.js';
 import { showToast } from '../main.js';
+import { setupTagInput } from './addfire.js';
 
 let loadedFiresList = [];
 
@@ -12,14 +13,27 @@ export function historyPage(container) {
   const main = document.createElement('main');
   main.className = 'main-content';
   main.innerHTML = `
-    <header class="page-header"><h1>📜 Historique des incendies</h1></header>
+    <header class="page-header"><h1><i class="fa-solid fa-clock-rotate-left" style="color: var(--fire-orange); margin-right: 8px;"></i> Historique des incendies</h1></header>
     <div class="page-body">
       <div class="stats-grid" id="history-stats"></div>
       <div class="data-table-wrap">
         <div class="table-toolbar">
-          <input class="search-input" id="search-fires" placeholder="🔍 Rechercher par forêt, daïra, commune…" />
-          <input type="date" id="filter-from" class="search-input" style="flex:0;width:160px;" />
-          <input type="date" id="filter-to"   class="search-input" style="flex:0;width:160px;" />
+          <input class="search-input" id="search-fires" placeholder="Rechercher par forêt, daïra, commune…" />
+          <select id="filter-status" class="search-input" style="flex:0; width:160px; cursor:pointer; background: var(--bg-input);">
+            <option value="">Tous les statuts</option>
+            <option value="declared">🔴 Déclaré</option>
+            <option value="investigating">🟠 En cours</option>
+            <option value="controlled">🟡 Maîtrisé</option>
+            <option value="extinguished">🟢 Éteint</option>
+          </select>
+          <select id="filter-cause" class="search-input" style="flex:0; width:160px; cursor:pointer; background: var(--bg-input);">
+            <option value="">Toutes les causes</option>
+            <option value="INC">Incendie (INC)</option>
+            <option value="CON">Contrôlé (CON)</option>
+            <option value="Unknown">Inconnue</option>
+          </select>
+          <input type="date" id="filter-from" class="search-input" style="flex:0;width:150px;" />
+          <input type="date" id="filter-to"   class="search-input" style="flex:0;width:150px;" />
           <button class="btn-secondary" id="filter-btn">Filtrer</button>
         </div>
         <div id="table-body">
@@ -41,6 +55,14 @@ export function historyPage(container) {
     currentPage = 1;
     loadHistory(currentPage);
   });
+  document.getElementById('filter-status').addEventListener('change', () => {
+    currentPage = 1;
+    loadHistory(currentPage);
+  });
+  document.getElementById('filter-cause').addEventListener('change', () => {
+    currentPage = 1;
+    loadHistory(currentPage);
+  });
   document.getElementById('search-fires').addEventListener('input', debounce(() => {
     currentPage = 1;
     loadHistory(currentPage);
@@ -50,6 +72,8 @@ export function historyPage(container) {
 // ── Data loader ────────────────────────────────────────────────────────────────
 async function loadHistory(page = 1) {
   const search  = document.getElementById('search-fires')?.value || '';
+  const status  = document.getElementById('filter-status')?.value || '';
+  const cause   = document.getElementById('filter-cause')?.value  || '';
   const from    = document.getElementById('filter-from')?.value  || '';
   const to      = document.getElementById('filter-to')?.value    || '';
   const tableBody = document.getElementById('table-body');
@@ -59,8 +83,10 @@ async function loadHistory(page = 1) {
 
   try {
     let url = `/fires?page=${page}&per_page=10&search=${encodeURIComponent(search)}`;
-    if (from) url += `&date_from=${from}`;
-    if (to)   url += `&date_to=${to}`;
+    if (status) url += `&status=${status}`;
+    if (cause)  url += `&cause=${cause}`;
+    if (from)   url += `&date_from=${from}`;
+    if (to)     url += `&date_to=${to}`;
 
     const data = await api.get(url);
     const fires = data.fires || [];
@@ -69,37 +95,51 @@ async function loadHistory(page = 1) {
     // ── Stats bar ──────────────────────────────────────────────────────────
     const statsEl = document.getElementById('history-stats');
     if (statsEl) {
-      const totalSurface = fires.reduce((s, f) => s + (f.surf_total || 0), 0);
-      const incCount     = fires.filter(f => f.cause === 'INC').length;
-      const conCount     = fires.filter(f => f.cause === 'CON').length;
+      const stats = data.stats || {};
+      const totalSurface = stats.total_surface ?? 0;
+      const incCount     = stats.inc_count ?? 0;
+      const conCount     = stats.con_count ?? 0;
+      const unkCount     = stats.unk_count ?? 0;
+
+      let durationText = "Min: — | Max: — | Moy: —";
+      if (stats.duration && stats.duration.has_durations) {
+        const minDur = stats.duration.min;
+        const maxDur = stats.duration.max;
+        const avgDur = stats.duration.avg;
+        durationText = `Min: ${minDur.toFixed(1)}h | Max: ${maxDur.toFixed(1)}h | Moy: ${avgDur.toFixed(1)}h`;
+      }
 
       statsEl.innerHTML = `
         <div class="stat-card">
-          <div class="stat-icon">📊</div>
+          <div class="stat-icon" style="color: var(--fire-orange);"><i class="fa-solid fa-chart-simple"></i></div>
           <div class="stat-value">${data.total ?? fires.length}</div>
           <div class="stat-label">Total incendies</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">🌿</div>
+          <div class="stat-icon" style="color: var(--risk-low);"><i class="fa-solid fa-leaf"></i></div>
           <div class="stat-value">${totalSurface.toFixed(1)} ha</div>
-          <div class="stat-label">Surface brûlée (page)</div>
+          <div class="stat-label">Surface brûlée (total)</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">🔥</div>
-          <div class="stat-value">${incCount}</div>
-          <div class="stat-label">Incendies (INC)</div>
+          <div class="stat-icon" style="color: var(--fire-red);"><i class="fa-solid fa-chart-pie"></i></div>
+          <div class="stat-value" style="font-size: 15px; font-weight: 700; white-space: nowrap; height: 38px; display: flex; align-items: center;">
+            INC: ${incCount} | CON: ${conCount} | Inconnu: ${unkCount}
+          </div>
+          <div class="stat-label">Distribution des causes (total)</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">🪵</div>
-          <div class="stat-value">${conCount}</div>
-          <div class="stat-label">Brûlages contrôlés (CON)</div>
+          <div class="stat-icon" style="color: #6ee7b7;"><i class="fa-solid fa-hourglass-half"></i></div>
+          <div class="stat-value" style="font-size: 14px; font-weight: 700; white-space: nowrap; height: 38px; display: flex; align-items: center;">
+            ${durationText}
+          </div>
+          <div class="stat-label">Durée [Décl. ➔ Ext.] (total min | max | moy)</div>
         </div>
       `;
     }
 
     // ── Empty state ────────────────────────────────────────────────────────
     if (fires.length === 0) {
-      tableBody.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Aucun incendie trouvé</p></div>';
+      tableBody.innerHTML = '<div class="empty-state"><div class="icon" style="color: var(--text-muted);"><i class="fa-solid fa-box-open"></i></div><p>Aucun incendie trouvé</p></div>';
       renderPagination(data.total || 0, page, 50);
       return;
     }
@@ -109,85 +149,195 @@ async function loadHistory(page = 1) {
       <table class="data-table">
         <thead>
           <tr>
-            <th>Déclaration</th>
-            <th>Statut</th>
             <th>Forêt</th>
             <th>Daïra / Commune</th>
-            <th>Essence</th>
-            <th>Forêt (ha)</th>
-            <th>Maquis (ha)</th>
-            <th>Broussailles (ha)</th>
             <th>Total (ha)</th>
             <th>Cause</th>
-            <th>Signalé par</th>
-            <th>Organismes</th>
-            <th>Dégâts (DZD)</th>
-            <th>Météo</th>
+            <th>Déclaration</th>
             <th>Extinction</th>
-            <th>Actions</th>
+            <th style="text-align: right; padding-right: 16px;">Actions</th>
           </tr>
         </thead>
         <tbody>
-          ${fires.map(f => `
-            <tr>
-              <td>${formatDateHour(f.declaration_date, f.declaration_hour)}</td>
-              <td>
-                ${f.status === 'extinguished' ? `
-                  <span class="badge badge-success" style="background: rgba(6, 214, 160, 0.12); color: #6ee7b7; border: 1px solid rgba(6, 214, 160, 0.2); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; display: inline-block;">🟢 Éteint</span>
-                ` : `
-                  <select class="status-select" data-id="${f.id}" data-prev="${f.status || 'declared'}" style="padding: 4px 8px; border-radius: 4px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); font-size: 12px; cursor: pointer; font-weight: 500; outline: none;">
-                    <option value="declared" ${f.status === 'declared' || !f.status ? 'selected' : ''}>🔴 Déclaré</option>
-                    <option value="investigating" ${f.status === 'investigating' ? 'selected' : ''}>🟠 En cours</option>
-                    <option value="controlled" ${f.status === 'controlled' ? 'selected' : ''}>🟡 Maîtrisé</option>
-                    <option value="extinguished" ${f.status === 'extinguished' ? 'selected' : ''}>🟢 Éteint (Bilan requis)</option>
-                  </select>
-                `}
-              </td>
-              <td><strong>${f.forest_name}</strong></td>
-              <td>${[f.daira, f.commune].filter(Boolean).join(' / ') || '—'}</td>
-              <td>${f.essence || '—'}</td>
-              <td class="num">${f.tot_foret ?? 0}</td>
-              <td class="num">${f.tot_maquis ?? 0}</td>
-              <td class="num">${f.tot_broussailles ?? 0}</td>
-              <td class="num"><strong>${f.surf_total ?? 0}</strong></td>
-              <td>${causeBadge(f.cause)}</td>
-              <td>${f.signale || '—'}</td>
-              <td>${f.organismes || '—'}</td>
-              <td class="num">${f.degats ? f.degats.toLocaleString('fr-DZ') : '—'}</td>
-              <td>${formatMeteo(f)}</td>
-              <td>${formatDateHour(f.extinction_date, f.extinction_hour)}</td>
-              <td>
-                <div style="display: flex; gap: 6px;">
-                  <button class="btn-action-edit" data-id="${f.id}" style="background: rgba(59, 91, 219, 0.12); border: 1px solid rgba(59, 91, 219, 0.2); color: #7b9cf5; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: var(--transition);" title="Modifier">✏️</button>
-                  <button class="btn-action-delete" data-id="${f.id}" style="background: rgba(230, 57, 70, 0.12); border: 1px solid rgba(230, 57, 70, 0.2); color: #fca5a5; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: var(--transition);" title="Supprimer">🗑️</button>
-                </div>
-              </td>
-            </tr>
-          `).join('')}
+          ${fires.map(f => {
+            const statusColors = {
+              declared: '#e63946',
+              investigating: '#ff6b35',
+              controlled: '#ffd166',
+              extinguished: '#6ee7b7'
+            };
+            const statusLabels = {
+              declared: 'Déclaré',
+              investigating: 'En cours',
+              controlled: 'Maîtrisé',
+              extinguished: 'Éteint'
+            };
+            const dotColor = statusColors[f.status] || '#e63946';
+            const dotLabel = statusLabels[f.status] || 'Déclaré';
+            const dotHTML = f.status === 'extinguished' ? '' : `<span style="position: absolute; top: 4px; left: 4px; width: 6px; height: 6px; border-radius: 50%; background-color: ${dotColor}; box-shadow: 0 0 6px ${dotColor};" title="${dotLabel}"></span>`;
+            
+            const nextStatusMap = {
+              declared: { next: 'investigating', label: 'Passer En cours', color: '#ff6b35', bg: 'rgba(255, 107, 53, 0.12)', border: 'rgba(255, 107, 53, 0.2)', icon: 'fa-fire-burner' },
+              investigating: { next: 'controlled', label: 'Passer Maîtrisé', color: '#ffd166', bg: 'rgba(255, 209, 102, 0.12)', border: 'rgba(255, 209, 102, 0.2)', icon: 'fa-hands-holding-circle' },
+              controlled: { next: 'extinguished', label: 'Passer Éteint', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.2)', icon: 'fa-circle-check' }
+            };
+            const nextInfo = nextStatusMap[f.status];
+            const quickStatusButton = nextInfo ? `
+              <button class="btn-action-status" data-id="${f.id}" data-next="${nextInfo.next}" style="background: ${nextInfo.bg}; border: 1px solid ${nextInfo.border}; color: ${nextInfo.color}; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center;" title="${nextInfo.label}">
+                <i class="fa-solid ${nextInfo.icon}"></i>
+              </button>
+            ` : '';
+
+            return `
+              <tr>
+                <td style="position: relative;">
+                  ${dotHTML}
+                  <strong>${f.forest_name}</strong>
+                </td>
+                <td>${[f.daira, f.commune].filter(Boolean).join(' / ') || '—'}</td>
+                <td class="num"><strong>${f.surf_total ?? 0}</strong></td>
+                <td>${causeBadge(f.cause)}</td>
+                <td>${formatDateHour(f.declaration_date, f.declaration_hour)}</td>
+                <td>${formatDateHour(f.extinction_date, f.extinction_hour)}</td>
+                <td style="text-align: right; padding-right: 16px;">
+                  <div style="display: flex; gap: 6px; justify-content: flex-end;">
+                    ${quickStatusButton}
+                    <button class="btn-action-view" data-id="${f.id}" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.2); color: #34d399; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center;" title="Détails"><i class="fa-solid fa-eye"></i></button>
+                    <button class="btn-action-edit" data-id="${f.id}" style="background: rgba(59, 91, 219, 0.12); border: 1px solid rgba(59, 91, 219, 0.2); color: #7b9cf5; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center;" title="Modifier"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button class="btn-action-delete" data-id="${f.id}" style="background: rgba(230, 57, 70, 0.12); border: 1px solid rgba(230, 57, 70, 0.2); color: #fca5a5; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center;" title="Supprimer"><i class="fa-solid fa-trash-can"></i></button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('')}
         </tbody>
       </table>
     `;
 
-    // Bind status change event listeners
-    document.querySelectorAll('.status-select').forEach(select => {
-      select.addEventListener('change', async () => {
-        const fireId = select.dataset.id;
-        const prevStatus = select.dataset.prev;
-        const newStatus = select.value;
+    // Bind View Details Click Handlers
+    document.querySelectorAll('.btn-action-view').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const fireId = btn.dataset.id;
+        const fire = loadedFiresList.find(f => f.id === fireId);
+        if (!fire) return;
 
-        if (newStatus === 'extinguished') {
-          showToast("Pour éteindre un incendie et enregistrer son bilan, veuillez utiliser l'onglet 'Bilan après extinction' de la page 'Ajouter un incendie'.", 'warning');
-          select.value = prevStatus;
-          return;
-        }
+        const modal = document.createElement('div');
+        modal.id = 'view-fire-modal-container';
+        modal.innerHTML = `
+          <div class="modal-overlay" id="view-fire-modal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px);">
+            <div class="modal-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); width: 90%; max-width: 650px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column;">
+              <div class="modal-header" style="padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <h3 style="margin:0; font-size:18px; font-weight:700; color:var(--text-primary);"><i class="fa-solid fa-fire" style="color:var(--fire-red); margin-right: 6px;"></i> Détails de l'incendie</h3>
+                  ${statusBadgeHTML(fire.status)}
+                </div>
+                <button type="button" id="close-view-modal" style="background:transparent; border:none; color:var(--text-secondary); font-size:20px; cursor:pointer;">&times;</button>
+              </div>
+              <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 20px; color: var(--text-primary);">
+                
+                <!-- Section 1: Localisation -->
+                <div>
+                  <h4 style="margin: 0 0 10px 0; color: var(--fire-orange); font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; display:flex; align-items:center; gap:6px;"><i class="fa-solid fa-location-dot" style="color:var(--fire-orange); margin-right: 6px;"></i> Localisation</h4>
+                  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 13px;">
+                    <div><span style="color: var(--text-secondary);">Forêt :</span> <strong>${fire.forest_name || '—'}</strong></div>
+                    <div><span style="color: var(--text-secondary);">Commune :</span> <strong>${fire.commune || '—'}</strong></div>
+                    <div><span style="color: var(--text-secondary);">Daïra :</span> <strong>${fire.daira || '—'}</strong></div>
+                    <div><span style="color: var(--text-secondary);">Coordonnées :</span> <strong>${fire.latitude ? `${fire.latitude.toFixed(5)}, ${fire.longitude.toFixed(5)}` : '—'}</strong></div>
+                  </div>
+                </div>
 
+                <!-- Section 2: Chronologie -->
+                <div>
+                  <h4 style="margin: 0 0 10px 0; color: var(--fire-orange); font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;"><i class="fa-solid fa-timeline" style="color:var(--fire-orange); margin-right: 6px;"></i> Chronologie</h4>
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 13px;">
+                    <div>
+                      <div style="color: var(--text-secondary); font-size:11px;">DÉCLARATION</div>
+                      <strong>${formatDateHour(fire.declaration_date, fire.declaration_hour)}</strong>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size:11px;">INTERVENTION</div>
+                      <strong>${formatDateHour(fire.intervention_date, fire.intervention_hour)}</strong>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size:11px;">EXTINCTION</div>
+                      <strong>${formatDateHour(fire.extinction_date, fire.extinction_hour)}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Section 3: Bilan de Végétation -->
+                <div>
+                  <h4 style="margin: 0 0 10px 0; color: var(--fire-orange); font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;"><i class="fa-solid fa-leaf" style="color:var(--risk-low); margin-right: 6px;"></i> Dégâts sur la Végétation</h4>
+                  <div style="display: flex; flex-direction:column; gap:8px; font-size: 13px; margin-bottom: 10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <span>Type de végétation (Essence) :</span>
+                      <strong>${(Array.isArray(fire.essence) ? fire.essence.join('+') : fire.essence) || '—'}</strong>
+                    </div>
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; text-align:center; padding: 10px; background: rgba(255,255,255,0.02); border-radius:4px; border: 1px solid var(--border-color);">
+                      <div>
+                        <div style="font-size:11px; color:var(--text-secondary);">Forêt</div>
+                        <div style="font-size:16px; font-weight:700; color:#3b5bdb;">${fire.tot_foret ?? 0} ha</div>
+                      </div>
+                      <div>
+                        <div style="font-size:11px; color:var(--text-secondary);">Maquis</div>
+                        <div style="font-size:16px; font-weight:700; color:#ff6b35;">${fire.tot_maquis ?? 0} ha</div>
+                      </div>
+                      <div>
+                        <div style="font-size:11px; color:var(--text-secondary);">Broussailles</div>
+                        <div style="font-size:16px; font-weight:700; color:#ffd166;">${fire.tot_broussailles ?? 0} ha</div>
+                      </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding: 6px 10px; background: var(--fire-gradient); border-radius: 4px; color:white; font-weight:700;">
+                      <span>SURFACE BRÛLÉE TOTALE :</span>
+                      <span>${fire.surf_total ?? 0} ha</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Section 4: Météo & Opérations -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                  <div>
+                    <h4 style="margin: 0 0 10px 0; color: var(--fire-orange); font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;"><i class="fa-solid fa-wind" style="color:var(--fire-orange); margin-right: 6px;"></i> Conditions Météo</h4>
+                    <div style="display:flex; flex-direction:column; gap:6px; font-size: 13px;">
+                      <div><span style="color: var(--text-secondary);">Température :</span> <strong>${fire.meteo_temp != null ? `${fire.meteo_temp} °C` : '—'}</strong></div>
+                      <div><span style="color: var(--text-secondary);">Vitesse du Vent :</span> <strong>${fire.meteo_wind_speed != null ? `${fire.meteo_wind_speed} km/h` : '—'}</strong></div>
+                      <div><span style="color: var(--text-secondary);">Direction du Vent :</span> <strong>${fire.meteo_wind_direction || '—'}</strong></div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 style="margin: 0 0 10px 0; color: var(--fire-orange); font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;"><i class="fa-solid fa-truck-fire" style="color:var(--fire-orange); margin-right: 6px;"></i> Enquête & Opérations</h4>
+                    <div style="display:flex; flex-direction:column; gap:6px; font-size: 13px;">
+                      <div><span style="color: var(--text-secondary);">Cause présumée :</span> ${causeBadge(fire.cause)}</div>
+                      <div><span style="color: var(--text-secondary);">Signalé par :</span> <strong>${fire.signale || '—'}</strong></div>
+                      <div><span style="color: var(--text-secondary);">Organismes :</span> <strong>${(Array.isArray(fire.organismes) ? fire.organismes.join('+') : fire.organismes) || '—'}</strong></div>
+                      <div><span style="color: var(--text-secondary);">Dégâts Estimés :</span> <strong style="color: #e63946;">${fire.degats ? `${fire.degats.toLocaleString('fr-DZ')} DZD` : '0 DZD'}</strong></div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+
+        const closeModal = () => modal.remove();
+        document.getElementById('close-view-modal').addEventListener('click', closeModal);
+        document.getElementById('btn-close-view').addEventListener('click', closeModal);
+      });
+    });
+
+    // Bind Quick Status Progress Handlers
+    document.querySelectorAll('.btn-action-status').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const fireId = btn.dataset.id;
+        const nextStatus = btn.dataset.next;
         try {
-          await api.patch(`/fires/${fireId}/status`, { status: newStatus });
-          select.dataset.prev = newStatus;
+          await api.put(`/fires/${fireId}`, { status: nextStatus });
           showToast('Statut de l\'incendie mis à jour avec succès !', 'success');
+          loadHistory(page);
         } catch (err) {
-          showToast(err.message || 'Erreur lors de la mise à jour du statut', 'error');
-          select.value = prevStatus;
+          showToast(err.message || 'Erreur lors du changement de statut', 'error');
         }
       });
     });
@@ -223,12 +373,12 @@ async function loadHistory(page = 1) {
           <div class="modal-overlay" id="edit-fire-modal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px);">
             <div class="modal-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column;">
               <div class="modal-header" style="padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin:0; font-size:18px; font-weight:700;">✏️ Modifier l'incendie</h3>
+                <h3 style="margin:0; font-size:18px; font-weight:700;"><i class="fa-solid fa-pen-to-square" style="color:var(--fire-orange); margin-right: 6px;"></i> Modifier l'incendie</h3>
                 <button type="button" id="close-edit-modal" style="background:transparent; border:none; color:var(--text-secondary); font-size:20px; cursor:pointer;">&times;</button>
               </div>
               <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
                 
-                <h4 style="margin: 0; border-bottom: 1px dashed var(--border-color); padding-bottom: 6px; color: var(--fire-orange);">🔍 Découverte</h4>
+                <h4 style="margin: 0; border-bottom: 1px dashed var(--border-color); padding-bottom: 6px; color: var(--fire-orange);"><i class="fa-solid fa-magnifying-glass" style="color:var(--fire-orange); margin-right: 6px;"></i> Découverte</h4>
                 <div class="grid-2col">
                   <div class="form-group" style="display:flex; flex-direction:column; gap:4px;">
                     <label style="font-size:12px; color:var(--text-secondary);">Forêt</label>
@@ -282,7 +432,7 @@ async function loadHistory(page = 1) {
                   </div>
                 </div>
 
-                <h4 style="margin: 8px 0 0 0; border-bottom: 1px dashed var(--border-color); padding-bottom: 6px; color: var(--fire-orange);">📊 Bilan & Extinction</h4>
+                <h4 style="margin: 8px 0 0 0; border-bottom: 1px dashed var(--border-color); padding-bottom: 6px; color: var(--fire-orange);"><i class="fa-solid fa-chart-line" style="color:var(--fire-orange); margin-right: 6px;"></i> Bilan & Extinction</h4>
                 
                 <div class="grid-2col">
                   <div class="form-group" style="display:flex; flex-direction:column; gap:4px;">
@@ -297,7 +447,7 @@ async function loadHistory(page = 1) {
 
                 <div class="form-group" style="display:flex; flex-direction:column; gap:4px;">
                   <label style="font-size:12px; color:var(--text-secondary);">Type de végétation (Essence)</label>
-                  <input type="text" id="edit-essence" placeholder="Ex: CL+MAQ+BRS" style="padding: 8px; border-radius: 4px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary);" />
+                  <div id="edit-essence-container"></div>
                 </div>
 
                 <div class="grid-3col">
@@ -318,7 +468,7 @@ async function loadHistory(page = 1) {
                 <div class="grid-2col">
                   <div class="form-group" style="display:flex; flex-direction:column; gap:4px;">
                     <label style="font-size:12px; color:var(--text-secondary);">Organismes intervenus</label>
-                    <input type="text" id="edit-organismes" style="padding: 8px; border-radius: 4px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary);" />
+                    <div id="edit-organismes-container"></div>
                   </div>
                   <div class="form-group" style="display:flex; flex-direction:column; gap:4px;">
                     <label style="font-size:12px; color:var(--text-secondary);">Dégâts estimés (DZD)</label>
@@ -336,6 +486,10 @@ async function loadHistory(page = 1) {
         `;
         document.body.appendChild(modal);
 
+        // Initialize tag inputs
+        const essenceTagInput = setupTagInput('edit-essence-container', 'Ex: CL, MAQ, BRS');
+        const organismesTagInput = setupTagInput('edit-organismes-container', 'Ex: SF, PC, DW');
+
         // Populate fields
         document.getElementById('edit-forest-name').value = fire.forest_name || '';
         document.getElementById('edit-status').value = fire.status || 'declared';
@@ -347,12 +501,17 @@ async function loadHistory(page = 1) {
         document.getElementById('edit-signale').value = fire.signale || '';
         document.getElementById('edit-ext-date').value = fire.extinction_date || '';
         document.getElementById('edit-ext-hour').value = fire.extinction_hour ?? '';
-        document.getElementById('edit-essence').value = fire.essence || '';
         document.getElementById('edit-tot-foret').value = fire.tot_foret ?? '';
         document.getElementById('edit-tot-maquis').value = fire.tot_maquis ?? '';
         document.getElementById('edit-tot-broussailles').value = fire.tot_broussailles ?? '';
-        document.getElementById('edit-organismes').value = fire.organismes || '';
         document.getElementById('edit-degats').value = fire.degats ?? '';
+
+        // Populate tag inputs
+        const essenceVal = fire.essence;
+        essenceTagInput.setTags(Array.isArray(essenceVal) ? essenceVal : (essenceVal ? essenceVal.split('+').map(s => s.trim()).filter(Boolean) : []));
+
+        const organismesVal = fire.organismes;
+        organismesTagInput.setTags(Array.isArray(organismesVal) ? organismesVal : (organismesVal ? organismesVal.split('+').map(s => s.trim()).filter(Boolean) : []));
 
         // Close handlers
         const closeModal = () => modal.remove();
@@ -396,22 +555,25 @@ async function loadHistory(page = 1) {
           const totBrousse = parseFloat(document.getElementById('edit-tot-broussailles').value) || 0;
           const surfTotal = totForet + totMaquis + totBrousse;
 
+          const declHour = parseInt(document.getElementById('edit-decl-hour').value);
+          const intHour = parseInt(document.getElementById('edit-int-hour').value);
+
           const body = {
             status:            statusVal,
             declaration_date:  declDate,
-            declaration_hour:  parseInt(document.getElementById('edit-decl-hour').value) ?? null,
+            declaration_hour:  isNaN(declHour) ? null : declHour,
             intervention_date: document.getElementById('edit-int-date').value || null,
-            intervention_hour: parseInt(document.getElementById('edit-int-hour').value) ?? null,
+            intervention_hour: isNaN(intHour) ? null : intHour,
             cause:             document.getElementById('edit-cause').value,
             signale:           document.getElementById('edit-signale').value || null,
             extinction_date:   extDate || null,
             extinction_hour:   isNaN(extHour) ? null : extHour,
-            essence:           document.getElementById('edit-essence').value || null,
+            essence:           essenceTagInput.getTags(),
             tot_foret:         totForet,
             tot_maquis:        totMaquis,
             tot_broussailles:  totBrousse,
             surf_total:        surfTotal,
-            organismes:        document.getElementById('edit-organismes').value || null,
+            organismes:        organismesTagInput.getTags(),
             degats:            parseFloat(document.getElementById('edit-degats').value) || 0
           };
 
@@ -484,6 +646,17 @@ function causeBadge(cause) {
   };
   const { label, cls } = map[cause] || map.Unknown;
   return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function statusBadgeHTML(status) {
+  const map = {
+    declared: { label: '<i class="fa-solid fa-circle-exclamation" style="margin-right: 4px;"></i> Déclaré', color: '#e63946', bg: 'rgba(230,57,70,0.12)' },
+    investigating: { label: '<i class="fa-solid fa-fire-burner" style="margin-right: 4px;"></i> En cours', color: '#ff6b35', bg: 'rgba(255,107,53,0.12)' },
+    controlled: { label: '<i class="fa-solid fa-hands-holding-circle" style="margin-right: 4px;"></i> Maîtrisé', color: '#ffd166', bg: 'rgba(255,209,102,0.12)' },
+    extinguished: { label: '<i class="fa-solid fa-circle-check" style="margin-right: 4px;"></i> Éteint', color: '#6ee7b7', bg: 'rgba(6,214,160,0.12)' }
+  };
+  const item = map[status] || map.declared;
+  return `<span style="background: ${item.bg}; color: ${item.color}; border: 1px solid ${item.color}33; padding: 4px 10px; border-radius: 4px; font-weight: 600; font-size: 12px; display: inline-block;">${item.label}</span>`;
 }
 
 function debounce(fn, ms) {

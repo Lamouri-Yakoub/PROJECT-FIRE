@@ -2,6 +2,39 @@ import { renderSidebar } from '../components/sidebar.js';
 import { api } from '../api.js';
 import { showToast } from '../main.js';
 
+const COMMUNE_COORDS = {
+  "AIN BEN BEIDA": [36.606134, 7.678143],
+  "AIN LARBI": [36.272934, 7.385849],
+  "AIN MAKHLOUF": [36.232892, 7.249341],
+  "AIN REGADA": [36.286701, 7.070346],
+  "AIN SANDEL": [36.256186, 7.541737],
+  "BELKHEIR": [36.400637, 7.470186],
+  "BENDJERRAH": [36.435605, 7.365185],
+  "BENI MEZLINE": [36.474108, 7.624688],
+  "BORDJ SABAT": [36.416205, 7.013467],
+  "BOUATI MAHMOUD": [36.59986, 7.352936],
+  "BOUCHEGOUF": [36.51253, 7.788855],
+  "BOUHACHANA": [36.305204, 7.488739],
+  "BOUHAMDANE": [36.479237, 7.121896],
+  "DAHOUARA": [36.302203, 7.700203],
+  "DJEBALLAH KHEMISSI": [36.499811, 7.56149],
+  "EL FEDJOUDJ": [36.525597, 7.363946],
+  "GUELAAT BOU SBA": [36.545114, 7.498242],
+  "HAMMAM DEBAGH": [36.479726, 7.279916],
+  "HAMMAM N'BAILS": [36.324959, 7.739403],
+  "HELIOPOLIS": [36.562698, 7.409226],
+  "HOUARI BOUMEDIENNE": [36.382358, 7.275779],
+  "KHEZARAS": [36.351245, 7.489697],
+  "MEDJEZ AMAR": [36.462139, 7.316854],
+  "MEDJEZ SFA": [36.452061, 7.869496],
+  "NECHMAYA": [36.621485, 7.455068],
+  "OUED CHEHAM": [36.326412, 7.787007],
+  "OUED FRAGHA": [36.570152, 7.711743],
+  "OUED ZENATI": [36.290107, 7.178793],
+  "ROKNIA": [36.569364, 7.15006],
+  "SELLAOUA ANNOUNA": [36.345169, 7.29477]
+};
+
 export function forestsPage(container) {
   // Page States
   let forests = [];      // paginated list
@@ -29,7 +62,7 @@ export function forestsPage(container) {
   main.className = 'main-content';
   main.innerHTML = `
     <header class="page-header">
-      <h1>🌲 Gestion des Forêts</h1>
+      <h1><i class="fa-solid fa-tree" style="color: var(--risk-low); margin-right: 8px;"></i> Gestion des Forêts</h1>
       <div class="header-actions">
         <!-- Optional top level badge or page controls -->
       </div>
@@ -38,7 +71,7 @@ export function forestsPage(container) {
       <!-- Top Filter Bar -->
       <div class="table-toolbar" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
         <div style="display: flex; gap: 16px; flex: 1; align-items: center; flex-wrap: wrap;">
-          <input type="text" id="forest-search" placeholder="🔍 Rechercher une forêt..." class="search-input" style="max-width: 280px; margin: 0;" />
+          <input type="text" id="forest-search" placeholder="Rechercher une forêt..." class="search-input" style="max-width: 280px; margin: 0;" />
           
           <select id="filter-daira" class="search-input" style="max-width: 200px; margin: 0; background: var(--bg-input);">
             <option value="">Toutes les Daïras</option>
@@ -50,7 +83,7 @@ export function forestsPage(container) {
         </div>
         
         <button id="btn-add-forest" class="btn-primary" style="margin: 0; width: auto; padding: 10px 20px; display: flex; align-items: center; gap: 8px; font-weight: 600;">
-          <span>➕</span> Ajouter une Forêt
+          <i class="fa-solid fa-plus"></i> Ajouter une Forêt
         </button>
       </div>
 
@@ -90,7 +123,7 @@ export function forestsPage(container) {
       <!-- All Forests Map Container (Displays all system forests) -->
       <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; margin-top: 24px; position: relative;">
         <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-          <span>🗺️</span> Carte de Distribution de Toutes les Forêts (${dairas.length > 0 ? 'Guelma' : 'Algérie'})
+          <span><i class="fa-solid fa-map-location-dot" style="color: var(--fire-orange); margin-right: 6px;"></i></span> Carte de Distribution de Toutes les Forêts (${dairas.length > 0 ? 'Guelma' : 'Algérie'})
         </h3>
         <div id="all-forests-map-container" style="height: 480px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-color);">
           <div id="all-forests-map" style="height: 100%; width: 100%;"></div>
@@ -104,7 +137,7 @@ export function forestsPage(container) {
         <!-- Close Button -->
         <button id="modal-close" style="position: absolute; top: 20px; right: 20px; background: transparent; font-size: 20px; color: var(--text-secondary); transition: var(--transition);">✕</button>
         
-        <h3 id="modal-title" style="font-size: 20px; font-weight: 700; margin-bottom: 24px; color: var(--text-primary);">🌲 Ajouter une Forêt</h3>
+        <h3 id="modal-title" style="font-size: 20px; font-weight: 700; margin-bottom: 24px; color: var(--text-primary);"><i class="fa-solid fa-tree" style="color: var(--risk-low); margin-right: 6px;"></i> Ajouter une Forêt</h3>
         
         <form id="forest-form">
           <input type="hidden" id="forest-id" />
@@ -278,6 +311,53 @@ export function forestsPage(container) {
     dairaSelect.addEventListener('change', () => {
       const dairaId = dairaSelect.value;
       populateCommunesDropdown(dairaId);
+
+      if (dairaId) {
+        const filtered = communes.filter(c => c.daira && (c.daira._id === dairaId || c.daira === dairaId));
+        let latSum = 0;
+        let lonSum = 0;
+        let count = 0;
+
+        filtered.forEach(c => {
+          if (COMMUNE_COORDS[c.name]) {
+            latSum += COMMUNE_COORDS[c.name][0];
+            lonSum += COMMUNE_COORDS[c.name][1];
+            count++;
+          }
+        });
+
+        if (count > 0 && map) {
+          const avgLat = latSum / count;
+          const avgLon = lonSum / count;
+          map.setView([avgLat, avgLon], 11);
+        }
+      }
+    });
+
+    communeSelect.addEventListener('change', () => {
+      const communeId = communeSelect.value;
+      if (communeId) {
+        const comm = communes.find(c => c._id === communeId);
+        if (comm && COMMUNE_COORDS[comm.name]) {
+          const [lat, lon] = COMMUNE_COORDS[comm.name];
+          latInput.value = lat.toFixed(6);
+          lonInput.value = lon.toFixed(6);
+          updateMarker(lat, lon);
+          if (map) {
+            map.setView([lat, lon], 13);
+          }
+        }
+      } else {
+        latInput.value = '';
+        lonInput.value = '';
+        if (marker && map) {
+          map.removeLayer(marker);
+          marker = null;
+        }
+        if (map) {
+          map.setView([36.46, 7.43], 10);
+        }
+      }
     });
 
     // Modal control events
@@ -363,8 +443,8 @@ export function forestsPage(container) {
           </td>
           <td style="text-align: right; padding-right: 24px;">
             <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
-              <button class="btn-edit-forest btn-secondary" style="padding: 6px 12px; font-size: 13px; margin: 0;" data-id="${f.id || f._id}">✏️ Modifier</button>
-              <button class="btn-delete-forest btn-primary" style="padding: 6px 12px; font-size: 13px; background: var(--fire-red); margin: 0;" data-id="${f.id || f._id}">🗑️ Supprimer</button>
+              <button class="btn-edit-forest btn-secondary" style="padding: 6px 12px; font-size: 13px; margin: 0; display: flex; align-items: center; gap: 4px;" data-id="${f.id || f._id}"><i class="fa-solid fa-pen-to-square"></i> Modifier</button>
+              <button class="btn-delete-forest btn-primary" style="padding: 6px 12px; font-size: 13px; background: var(--fire-red); margin: 0; display: flex; align-items: center; gap: 4px;" data-id="${f.id || f._id}"><i class="fa-solid fa-trash-can"></i> Supprimer</button>
             </div>
           </td>
         </tr>
@@ -417,6 +497,8 @@ export function forestsPage(container) {
       attribution: '© OpenStreetMap contributors',
       maxZoom: 18,
     }).addTo(map);
+
+
 
     map.on('click', (e) => {
       const { lat, lng } = e.latlng;
@@ -479,6 +561,8 @@ export function forestsPage(container) {
       maxZoom: 18,
     }).addTo(allForestsMap);
 
+
+
     renderAllForestsMarkers();
   }
 
@@ -512,27 +596,27 @@ export function forestsPage(container) {
       const markerColor = maxCount > 5 ? 'red' : maxCount > 2 ? 'orange' : maxCount > 0 ? 'yellow' : 'green';
 
       const popupHTML = `
-        <div style="font-family: var(--font-family, sans-serif); color: #222; padding: 4px; min-width: 190px; max-width: 250px; max-height: 250px; overflow-y: auto;">
+        <div style="font-family: var(--font-family, sans-serif); color: var(--text-primary); padding: 4px; min-width: 190px; max-width: 250px; max-height: 250px; overflow-y: auto;">
           ${group.map((f, index) => {
             const dName = f.daira && f.daira.name ? f.daira.name : 'N/A';
             const cName = f.commune && f.commune.name ? f.commune.name : 'N/A';
             const count = f.fire_count !== undefined ? f.fire_count : 0;
 
             return `
-              <div style="${index > 0 ? 'margin-top: 12px; padding-top: 12px; border-top: 1px dashed #ccc;' : ''}">
-                <h4 style="margin: 0 0 4px 0; color: #111; font-weight: 700; font-size: 13px; text-transform: uppercase;">🌲 ${f.name}</h4>
-                <p style="margin: 2px 0; font-size: 11px;"><strong>Daïra:</strong> ${dName}</p>
-                <p style="margin: 2px 0; font-size: 11px;"><strong>Commune:</strong> ${cName}</p>
-                <p style="margin: 4px 0 6px 0; font-size: 11px; display: flex; align-items: center; gap: 6px;">
+              <div style="${index > 0 ? 'margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-color);' : ''}">
+                <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-weight: 700; font-size: 13px; text-transform: uppercase;"><i class="fa-solid fa-tree" style="color: var(--risk-low, #06d6a0); margin-right: 4px;"></i> ${f.name}</h4>
+                <p style="margin: 2px 0; font-size: 11px; color: var(--text-secondary);"><strong>Daïra:</strong> ${dName}</p>
+                <p style="margin: 2px 0; font-size: 11px; color: var(--text-secondary);"><strong>Commune:</strong> ${cName}</p>
+                <p style="margin: 4px 0 6px 0; font-size: 11px; display: flex; align-items: center; gap: 6px; color: var(--text-secondary);">
                   <strong>Foyers:</strong>
                   <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: ${
-                    count > 5 ? '#e63946' : count > 2 ? '#ff6b35' : count > 0 ? '#ffd166' : '#06d6a0'
+                    count > 5 ? 'var(--fire-red, #e63946)' : count > 2 ? 'var(--fire-orange, #ff6b35)' : count > 0 ? 'var(--fire-yellow, #ffd166)' : 'var(--risk-low, #06d6a0)'
                   }; color: ${count > 2 ? '#fff' : '#111'}; font-size: 9px;">
                     ${count} ${count > 1 ? 'incendies' : 'incendie'}
                   </span>
                 </p>
-                <button onclick="window._editForestFromMap('${f.id || f._id}')" style="background: var(--fire-orange, #ff6b35); color: #fff; border: none; border-radius: 4px; padding: 6px 10px; font-size: 10px; cursor: pointer; font-weight: 600; width: 100%; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                  ✏️ Modifier la Forêt
+                <button onclick="window._editForestFromMap('${f.id || f._id}')" style="background: var(--fire-orange, #ff6b35); color: #fff; border: none; border-radius: 4px; padding: 6px 10px; font-size: 10px; cursor: pointer; font-weight: 600; width: 100%; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 4px;">
+                  <i class="fa-solid fa-pen-to-square"></i> Modifier la Forêt
                 </button>
               </div>
             `;
@@ -565,7 +649,7 @@ export function forestsPage(container) {
 
   function openModal(editMode = false) {
     isEditing = editMode;
-    modalTitle.innerHTML = isEditing ? '✏️ Modifier la Forêt' : '🌲 Ajouter une Forêt';
+    modalTitle.innerHTML = isEditing ? '<i class="fa-solid fa-pen-to-square"></i> Modifier la Forêt' : '<i class="fa-solid fa-tree" style="color: var(--risk-low); margin-right: 6px;"></i> Ajouter une Forêt';
     
     modal.style.opacity = '1';
     modal.style.pointerEvents = 'auto';

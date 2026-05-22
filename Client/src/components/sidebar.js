@@ -2,12 +2,12 @@ import { getUser, logout } from '../auth.js';
 import { navigate, currentPath } from '../router.js';
 
 const NAV_ITEMS = [
-  { path: '/dashboard', icon: '🗺️', label: 'Tableau de bord' },
-  { path: '/forests', icon: '🌲', label: 'Forêts' },
-  { path: '/prediction', icon: '🔮', label: 'Prédiction' },
-  { path: '/history', icon: '📜', label: 'Historique' },
-  { path: '/add-fire', icon: '➕', label: 'Ajouter Incendie' },
-  { path: '/settings', icon: '⚙️', label: 'Paramètres' },
+  { path: '/dashboard', icon: '<i class="fa-solid fa-map"></i>', label: 'Tableau de bord' },
+  { path: '/forests', icon: '<i class="fa-solid fa-tree"></i>', label: 'Forêts' },
+  { path: '/prediction', icon: '<i class="fa-solid fa-wand-magic-sparkles"></i>', label: 'Prédiction' },
+  { path: '/history', icon: '<i class="fa-solid fa-clock-rotate-left"></i>', label: 'Historique' },
+  { path: '/add-fire', icon: '<i class="fa-solid fa-plus"></i>', label: 'Ajouter Incendie' },
+  { path: '/settings', icon: '<i class="fa-solid fa-gear"></i>', label: 'Paramètres' },
 ];
 
 export function renderSidebar(container) {
@@ -19,7 +19,7 @@ export function renderSidebar(container) {
   sidebar.className = 'sidebar';
   sidebar.innerHTML = `
     <div class="sidebar-logo">
-      <span class="icon">🔥</span>
+      <span class="icon" style="color: var(--fire-orange); margin-right: 2px;"><i class="fa-solid fa-fire"></i></span>
       <h2>FireGuard</h2>
     </div>
     <nav class="sidebar-nav">
@@ -39,7 +39,7 @@ export function renderSidebar(container) {
         </div>
       </div>
       <div class="nav-item" id="logout-btn" style="margin-top:8px;color:var(--fire-red);">
-        <span class="nav-icon">🚪</span>
+        <span class="nav-icon"><i class="fa-solid fa-right-from-bracket"></i></span>
         <span>Déconnexion</span>
       </div>
     </div>

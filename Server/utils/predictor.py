@@ -36,20 +36,18 @@ def predict_top_forests(date, weather):
     results = []
 
     for i, forest in enumerate(get_forest_context().index):
-        if(probs[i] >=0.5):
-            ctx = get_forest_context().loc[forest]
-            lat, lon = get_forest_coordinates(forest)
-            results.append({
-                "forest": forest,
-                "daira": ctx.get("DAIRA"),
-                "commune": ctx.get("COMMUNE"),
-                "latitude": lat,
-                "longitude": lon,
-                "risk": float(probs[i])
-            })
+        ctx = get_forest_context().loc[forest]
+        lat, lon = get_forest_coordinates(forest)
+        results.append({
+            "forest": forest,
+            "daira": ctx.get("DAIRA"),
+            "commune": ctx.get("COMMUNE"),
+            "latitude": lat,
+            "longitude": lon,
+            "risk": float(probs[i])
+        })
 
     results.sort(key=lambda x: x["risk"], reverse=True)
-    #> 4
     return results
 
 

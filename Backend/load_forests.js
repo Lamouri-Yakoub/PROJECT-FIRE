@@ -16,10 +16,10 @@ const path = require("path");
 const { parse } = require("csv-parse/sync");
 
 // ── Models ────────────────────────────────────────────────────────────────────
-const Daira   = require("./models/Daira");
+const Daira = require("./models/Daira");
 const Commune = require("./models/Commune");
-const Forest  = require("./models/Forest");
-const Fire    = require("./models/Fire");
+const Forest = require("./models/Forest");
+const Fire = require("./models/Fire");
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const MONGO_URI =
@@ -61,7 +61,7 @@ async function seed() {
   console.log("✅  Connected to MongoDB:", MONGO_URI);
 
   // ── Parse CSV ──────────────────────────────────────────────────────────────
-  const raw  = fs.readFileSync(CSV_PATH, "utf8");
+  const raw = fs.readFileSync(CSV_PATH, "utf8");
   const rows = parse(raw, { columns: true, skip_empty_lines: true, trim: true });
   console.log(`📄  Parsed ${rows.length} rows from CSV`);
 
@@ -104,7 +104,7 @@ async function seed() {
 
   for (const name of communeNames) {
     const dairaName = communeMap[name];
-    const dairaId   = dairaIdMap[dairaName];
+    const dairaId = dairaIdMap[dairaName];
 
     if (!dairaId) {
       console.warn(`   ⚠️  Daira not found for commune "${name}" – skipping`);
@@ -126,20 +126,20 @@ async function seed() {
   let fInserted = 0, fSkipped = 0;
 
   for (const row of forestRows) {
-    const name      = row.FORET;
+    const name = row.FORET;
     const communeId = communeIdMap[row.COMMUNE] || null;
-    const dairaId   = dairaIdMap[row.DAIRA]     || null;
-    const lat       = parseFloat(row.LATITUDE);
-    const lon       = parseFloat(row.LONGITUDE);
+    const dairaId = dairaIdMap[row.DAIRA] || null;
+    const lat = parseFloat(row.LATITUDE);
+    const lon = parseFloat(row.LONGITUDE);
 
     try {
       const doc = await Forest.findOneAndUpdate(
         { name },
         {
           name,
-          commune:   communeId,
-          daira:     dairaId,
-          latitude:  validCoord(lat, lon) ? lat : null,
+          commune: communeId,
+          daira: dairaId,
+          latitude: validCoord(lat, lon) ? lat : null,
           longitude: validCoord(lat, lon) ? lon : null,
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -160,7 +160,7 @@ async function seed() {
   let fireInserted = 0, fireSkipped = 0;
 
   for (const row of rows) {
-    const forestId  = forestIdMap[row.FORET];
+    const forestId = forestIdMap[row.FORET];
     if (!forestId) {
       console.warn(`   ⚠️  Forest "${row.FORET}" not found – skipping fire on ${row.DATE_DECL}`);
       fireSkipped++;
@@ -168,37 +168,37 @@ async function seed() {
     }
 
     const communeId = communeIdMap[row.COMMUNE] || null;
-    const dairaId   = dairaIdMap[row.DAIRA]     || null;
+    const dairaId = dairaIdMap[row.DAIRA] || null;
 
     const fire = {
-      forest:  forestId,
+      forest: forestId,
       commune: communeId,
-      daira:   dairaId,
+      daira: dairaId,
 
       // Dates – strip the bogus time component; hours come from DECL/INT/EXT_HOUR
-      declaration_date:  parseDate(row.DATE_DECL),
-      declaration_hour:  parseNum(row.DECL_HOUR),
+      declaration_date: parseDate(row.DATE_DECL),
+      declaration_hour: parseNum(row.DECL_HOUR),
       intervention_date: parseDate(row.DATE_INT),
       intervention_hour: parseNum(row.INT_HOUR),
-      extinction_date:   parseDate(row.DATE_EXT),
-      extinction_hour:   parseNum(row.EXT_HOUR),
+      extinction_date: parseDate(row.DATE_EXT),
+      extinction_hour: parseNum(row.EXT_HOUR),
 
       // Vegetation
-      essence:          row.ESSENCE  || null,
-      tot_foret:        parseNum(row.TOT_FORET)        ?? 0,
-      tot_maquis:       parseNum(row.TOT_MAQUIS)       ?? 0,
+      essence: row.ESSENCE ? row.ESSENCE.split('+').map(s => s.trim()).filter(Boolean) : [],
+      tot_foret: parseNum(row.TOT_FORET) ?? 0,
+      tot_maquis: parseNum(row.TOT_MAQUIS) ?? 0,
       tot_broussailles: parseNum(row.TOT_BROUSSAILLES) ?? 0,
-      surf_total:       parseNum(row.SURF_TOTAL)       ?? 0,
+      surf_total: parseNum(row.SURF_TOTAL) ?? 0,
 
       // Metadata
-      cause:      parseCause(row.CAUSE),
-      signale:    row.SIGNALE    || null,
-      organismes: row.ORGANISMES || null,
-      degats:     parseNum(row.DEGATS) ?? 0,
+      cause: parseCause(row.CAUSE),
+      signale: row.SIGNALE || null,
+      organismes: row.ORGANISMES ? row.ORGANISMES.split('+').map(s => s.trim()).filter(Boolean) : [],
+      degats: parseNum(row.DEGATS) ?? 0,
 
       // Weather
-      meteo_temp:           parseNum(row.METEO_TEMP),
-      meteo_wind_speed:     parseNum(row.METEO_VENTE_VITESSE),
+      meteo_temp: parseNum(row.METEO_TEMP),
+      meteo_wind_speed: parseNum(row.METEO_VENTE_VITESSE),
       meteo_wind_direction: row.METEO_VENTE_DIRECTION || null,
     };
 

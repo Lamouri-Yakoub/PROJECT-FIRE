@@ -24,8 +24,8 @@ const fireSchema = new mongoose.Schema({
   extinction_hour: { type: Number, default: null },   // EXT_HOUR   (0–23)
 
   // ── Vegetation / surface areas (hectares) ───────────────────────────────────
-  // ESSENCE: vegetation type codes, e.g. "CL+MAQ+BRS"
-  essence:           { type: String, default: null },
+  // ESSENCE: vegetation type codes, e.g. ["CL", "MAQ", "BRS"]
+  essence:           { type: [String], default: [] },
 
   // Surface areas burned (ha)
   tot_foret:         { type: Number, default: 0 },    // TOT_FORET        – forest
@@ -46,8 +46,8 @@ const fireSchema = new mongoose.Schema({
   signale: { type: String, default: null },
 
   // ORGANISMES: response organisations involved (comma/plus separated codes)
-  // e.g. "SF+PC+DW+EAPC+EMPS"
-  organismes: { type: String, default: null },
+  // e.g. ["SF", "PC", "DW", "EAPC", "EMPS"]
+  organismes: { type: [String], default: [] },
 
   // DEGATS: estimated financial damage (DZD)
   degats: { type: Number, default: 0 },

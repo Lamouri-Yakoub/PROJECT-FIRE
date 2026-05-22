@@ -17,6 +17,7 @@ mongoose.connect(MONGODB_URI)
     await seedForests();
     await seedFires();
     await updateExtinctionStatusMigration();
+    await migrateEssenceAndOrganismesToArray();
   })
   .catch((err) => {
     console.error('[ERROR] MongoDB connection failed:', err.message);
@@ -238,6 +239,51 @@ async function updateExtinctionStatusMigration() {
     }
   } catch (err) {
     console.error('[WARN] Extinction status migration failed:', err.message);
+  }
+}
+
+async function migrateEssenceAndOrganismesToArray() {
+  try {
+    const db = mongoose.connection.db;
+    const collection = db.collection('fires');
+    const fires = await collection.find({}).toArray();
+    let updatedCount = 0;
+    for (const fire of fires) {
+      let changed = false;
+      let newEssence = fire.essence;
+      let newOrganismes = fire.organismes;
+
+      // Migrate essence (vegetation type)
+      if (typeof fire.essence === 'string') {
+        newEssence = fire.essence.split('+').map(s => s.trim()).filter(Boolean);
+        changed = true;
+      } else if (Array.isArray(fire.essence) && fire.essence.length === 1 && typeof fire.essence[0] === 'string' && fire.essence[0].includes('+')) {
+        newEssence = fire.essence[0].split('+').map(s => s.trim()).filter(Boolean);
+        changed = true;
+      }
+
+      // Migrate organismes
+      if (typeof fire.organismes === 'string') {
+        newOrganismes = fire.organismes.split('+').map(s => s.trim()).filter(Boolean);
+        changed = true;
+      } else if (Array.isArray(fire.organismes) && fire.organismes.length === 1 && typeof fire.organismes[0] === 'string' && fire.organismes[0].includes('+')) {
+        newOrganismes = fire.organismes[0].split('+').map(s => s.trim()).filter(Boolean);
+        changed = true;
+      }
+
+      if (changed) {
+        await collection.updateOne(
+          { _id: fire._id },
+          { $set: { essence: newEssence, organismes: newOrganismes } }
+        );
+        updatedCount++;
+      }
+    }
+    if (updatedCount > 0) {
+      console.log(`[MIGRATION] Migrated ${updatedCount} fires from string to array for essence/organismes.`);
+    }
+  } catch (err) {
+    console.error('[WARN] Array migration for essence/organismes failed:', err.message);
   }
 }
 

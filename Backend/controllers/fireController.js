@@ -38,7 +38,7 @@ function formatFire(f) {
     extinction_hour:   f.extinction_hour   ?? null,
 
     // Vegetation & surfaces (ha)
-    essence:          f.essence          || null,
+    essence:          Array.isArray(f.essence) ? f.essence : (f.essence ? f.essence.split('+').map(s => s.trim()).filter(Boolean) : []),
     tot_foret:        f.tot_foret        ?? 0,
     tot_maquis:       f.tot_maquis       ?? 0,
     tot_broussailles: f.tot_broussailles ?? 0,
@@ -47,7 +47,7 @@ function formatFire(f) {
     // Metadata
     cause:      f.cause      || 'Unknown',
     signale:    f.signale    || null,
-    organismes: f.organismes || null,
+    organismes: Array.isArray(f.organismes) ? f.organismes : (f.organismes ? f.organismes.split('+').map(s => s.trim()).filter(Boolean) : []),
     degats:     f.degats     ?? 0,
 
     // Weather
@@ -64,7 +64,7 @@ function formatFire(f) {
 // ── GET /api/fires ─────────────────────────────────────────────────────────────
 exports.getFires = async (req, res) => {
   try {
-    const { search, date_from, date_to, status } = req.query || {};
+    const { search, date_from, date_to, status, cause } = req.query || {};
     const page    = parseInt(req.query.page)     || 1;
     const perPage = parseInt(req.query.per_page) || 50;
 
@@ -73,6 +73,11 @@ exports.getFires = async (req, res) => {
     // Filter by status
     if (status && VALID_STATUSES.includes(status)) {
       filter.status = status;
+    }
+
+    // Filter by cause
+    if (cause && ['INC', 'CON', 'Unknown'].includes(cause)) {
+      filter.cause = cause;
     }
 
     // Search by forest / daira / commune name
@@ -104,20 +109,64 @@ exports.getFires = async (req, res) => {
       if (date_to)   filter.declaration_date.$lte = new Date(date_to);
     }
 
-    const [total, fires] = await Promise.all([
+    const [total, fires, allMatching] = await Promise.all([
       Fire.countDocuments(filter),
       Fire.find(filter)
         .populate(FIRE_POPULATE)
         .sort({ declaration_date: -1 })
         .skip((page - 1) * perPage)
-        .limit(perPage)
+        .limit(perPage),
+      Fire.find(filter, {
+        surf_total: 1,
+        cause: 1,
+        declaration_date: 1,
+        declaration_hour: 1,
+        extinction_date: 1,
+        extinction_hour: 1
+      })
     ]);
+
+    const totalSurface = allMatching.reduce((s, f) => s + (f.surf_total || 0), 0);
+    const incCount = allMatching.filter(f => f.cause === 'INC').length;
+    const conCount = allMatching.filter(f => f.cause === 'CON').length;
+    const unkCount = allMatching.filter(f => !f.cause || f.cause === 'Unknown').length;
+
+    const durations = allMatching.map(f => {
+      if (!f.declaration_date || !f.extinction_date) return null;
+      const dec = new Date(f.declaration_date);
+      if (f.declaration_hour != null) dec.setUTCHours(f.declaration_hour, 0, 0, 0);
+      const ext = new Date(f.extinction_date);
+      if (f.extinction_hour != null) ext.setUTCHours(f.extinction_hour, 0, 0, 0);
+      const diffMs = ext.getTime() - dec.getTime();
+      const diffHrs = diffMs / (1000 * 60 * 60);
+      return diffHrs >= 0 ? diffHrs : null;
+    }).filter(v => v !== null);
+
+    let minDur = 0, maxDur = 0, avgDur = 0, hasDurations = false;
+    if (durations.length > 0) {
+      minDur = Math.min(...durations);
+      maxDur = Math.max(...durations);
+      avgDur = durations.reduce((a, b) => a + b, 0) / durations.length;
+      hasDurations = true;
+    }
 
     return res.json({
       fires: fires.map(formatFire),
       total,
       page,
-      per_page: perPage
+      per_page: perPage,
+      stats: {
+        total_surface: totalSurface,
+        inc_count: incCount,
+        con_count: conCount,
+        unk_count: unkCount,
+        duration: {
+          has_durations: hasDurations,
+          min: minDur,
+          max: maxDur,
+          avg: avgDur
+        }
+      }
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -251,7 +300,7 @@ exports.createFire = async (req, res) => {
       extinction_date:   extinction_date   ? new Date(extinction_date)   : null,
       extinction_hour:   extinction_hour   ?? null,
 
-      essence:          essence || null,
+      essence:          Array.isArray(essence) ? essence : (typeof essence === 'string' ? essence.split('+').map(s => s.trim()).filter(Boolean) : []),
       tot_foret:        parseFloat(tot_foret)        || 0,
       tot_maquis:       parseFloat(tot_maquis)       || 0,
       tot_broussailles: parseFloat(tot_broussailles) || 0,
@@ -259,7 +308,7 @@ exports.createFire = async (req, res) => {
 
       cause:      ['INC', 'CON', 'Unknown'].includes(cause) ? cause : 'Unknown',
       signale:    signale    || null,
-      organismes: organismes || null,
+      organismes: Array.isArray(organismes) ? organismes : (typeof organismes === 'string' ? organismes.split('+').map(s => s.trim()).filter(Boolean) : []),
       degats:     parseFloat(degats) || 0,
 
       meteo_temp:           finalTemp,
@@ -268,23 +317,6 @@ exports.createFire = async (req, res) => {
 
       created_by: req.user?.sub || null
     }).save();
-
-    // ── Sync with Python stats endpoint (best-effort) ────────────────────────
-    try {
-      await axios.post('http://localhost:5001/add_fire', {
-        fire: {
-          FORET:            forestDoc.name,
-          DAIRA:            daira   || '',
-          COMMUNE:          commune || '',
-          TOT_FORET:        tot_foret        || 0,
-          TOT_MAQUIS:       tot_maquis       || 0,
-          TOT_BROUSSAILLES: tot_broussailles || 0,
-          SURF_TOTAL:       surf_total       || 0
-        }
-      });
-    } catch (syncErr) {
-      console.warn('[WARN] Failed to sync with Python stats endpoint:', syncErr.message);
-    }
 
     return res.status(201).json({ id: newFire._id, message: 'Fire added successfully' });
   } catch (err) {
@@ -324,15 +356,35 @@ exports.updateFire = async (req, res) => {
     if (updateData.tot_maquis !== undefined) updateData.tot_maquis = parseFloat(updateData.tot_maquis) || 0;
     if (updateData.tot_broussailles !== undefined) updateData.tot_broussailles = parseFloat(updateData.tot_broussailles) || 0;
     if (updateData.surf_total !== undefined) updateData.surf_total = parseFloat(updateData.surf_total) || 0;
+    if (updateData.declaration_hour !== undefined) {
+      const parsedDecl = parseInt(updateData.declaration_hour);
+      updateData.declaration_hour = isNaN(parsedDecl) ? null : parsedDecl;
+    }
+    if (updateData.intervention_hour !== undefined) {
+      const parsedInt = parseInt(updateData.intervention_hour);
+      updateData.intervention_hour = isNaN(parsedInt) ? null : parsedInt;
+    }
+    if (updateData.extinction_hour !== undefined) {
+      const parsedExt = parseInt(updateData.extinction_hour);
+      updateData.extinction_hour = isNaN(parsedExt) ? null : parsedExt;
+    }
+
     if (updateData.degats !== undefined) updateData.degats = parseFloat(updateData.degats) || 0;
-    if (updateData.declaration_hour !== undefined) updateData.declaration_hour = parseInt(updateData.declaration_hour) ?? null;
-    if (updateData.intervention_hour !== undefined) updateData.intervention_hour = parseInt(updateData.intervention_hour) ?? null;
-    if (updateData.extinction_hour !== undefined) updateData.extinction_hour = parseInt(updateData.extinction_hour) ?? null;
 
     // Convert dates if they are sent
     if (updateData.declaration_date) updateData.declaration_date = new Date(updateData.declaration_date);
     if (updateData.intervention_date) updateData.intervention_date = new Date(updateData.intervention_date);
     if (updateData.extinction_date) updateData.extinction_date = new Date(updateData.extinction_date);
+
+    if (updateData.essence !== undefined) {
+      updateData.essence = Array.isArray(updateData.essence) ? updateData.essence : (typeof updateData.essence === 'string' ? updateData.essence.split('+').map(s => s.trim()).filter(Boolean) : []);
+    }
+    if (updateData.organismes !== undefined) {
+      updateData.organismes = Array.isArray(updateData.organismes) ? updateData.organismes : (typeof updateData.organismes === 'string' ? updateData.organismes.split('+').map(s => s.trim()).filter(Boolean) : []);
+    }
+
+    const existingFire = await Fire.findById(req.params.id);
+    if (!existingFire) return res.status(404).json({ error: 'Fire not found' });
 
     const fire = await Fire.findByIdAndUpdate(
       req.params.id,
@@ -340,23 +392,23 @@ exports.updateFire = async (req, res) => {
       { new: true }
     ).populate(FIRE_POPULATE);
 
-    if (!fire) return res.status(404).json({ error: 'Fire not found' });
-
-    // Sync with Python stats endpoint (best-effort)
-    try {
-      await axios.post('http://localhost:5001/add_fire', {
-        fire: {
-          FORET:            fire.forest?.name || '',
-          DAIRA:            fire.daira?.name || '',
-          COMMUNE:          fire.commune?.name || '',
-          TOT_FORET:        fire.tot_foret        || 0,
-          TOT_MAQUIS:       fire.tot_maquis       || 0,
-          TOT_BROUSSAILLES: fire.tot_broussailles || 0,
-          SURF_TOTAL:       fire.surf_total       || 0
-        }
-      });
-    } catch (syncErr) {
-      console.warn('[WARN] Failed to sync with Python stats endpoint:', syncErr.message);
+    // Sync with Python stats endpoint (best-effort) only when transitioned to 'extinguished'
+    if (existingFire.status !== 'extinguished' && fire.status === 'extinguished') {
+      try {
+        await axios.post('http://localhost:5001/add_fire', {
+          fire: {
+            FORET:            fire.forest?.name || '',
+            DAIRA:            fire.daira?.name || '',
+            COMMUNE:          fire.commune?.name || '',
+            TOT_FORET:        fire.tot_foret        || 0,
+            TOT_MAQUIS:       fire.tot_maquis       || 0,
+            TOT_BROUSSAILLES: fire.tot_broussailles || 0,
+            SURF_TOTAL:       fire.surf_total       || 0
+          }
+        });
+      } catch (syncErr) {
+        console.warn('[WARN] Failed to sync with Python stats endpoint:', syncErr.message);
+      }
     }
 
     return res.json(formatFire(fire));
@@ -368,26 +420,43 @@ exports.updateFire = async (req, res) => {
 // ── GET /api/fires/stats ───────────────────────────────────────────────────────
 exports.getStats = async (req, res) => {
   try {
-    const total = await Fire.countDocuments({});
+    const now        = new Date();
+    const yearStart  = new Date(now.getFullYear(), 0, 1);
+    const yearEnd    = new Date(now.getFullYear() + 1, 0, 1);
+
+    // Total fires declared this calendar year
+    const total = await Fire.countDocuments({
+      declaration_date: { $gte: yearStart, $lt: yearEnd }
+    });
 
     // Fires declared this calendar month
-    const now        = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const this_month = await Fire.countDocuments({
       declaration_date: { $gte: monthStart, $lt: monthEnd }
     });
 
-    // Breakdown by status
+    // Breakdown by status for this calendar year's fires
     const statusGroup = await Fire.aggregate([
+      { $match: { declaration_date: { $gte: yearStart, $lt: yearEnd } } },
       { $group: { _id: '$status', cnt: { $sum: 1 } } }
     ]);
     const by_status = { declared: 0, investigating: 0, controlled: 0, extinguished: 0 };
     statusGroup.forEach(g => { if (g._id in by_status) by_status[g._id] = g.cnt; });
 
-    // Top daira by fire count
+    // Active incidents (everything currently active, regardless of date, to keep real-time alerts)
+    const active_incidents = await Fire.countDocuments({
+      status: { $ne: 'extinguished' }
+    });
+
+    // Top daira by fire count this calendar year
     const topZoneGroup = await Fire.aggregate([
-      { $match: { daira: { $ne: null } } },
+      {
+        $match: {
+          daira: { $ne: null },
+          declaration_date: { $gte: yearStart, $lt: yearEnd }
+        }
+      },
       { $group: { _id: '$daira', cnt: { $sum: 1 } } },
       { $sort:  { cnt: -1 } },
       { $limit: 1 },
@@ -396,20 +465,102 @@ exports.getStats = async (req, res) => {
     ]);
     const top_zone = topZoneGroup.length > 0 ? topZoneGroup[0].daira_info.name : 'N/A';
 
-    // Total surface burned
+    // Total surface burned this calendar year
     const surfaceAgg = await Fire.aggregate([
+      { $match: { declaration_date: { $gte: yearStart, $lt: yearEnd } } },
       { $group: { _id: null, total_surface: { $sum: '$surf_total' } } }
     ]);
     const total_surface = surfaceAgg.length > 0 ? Math.round(surfaceAgg[0].total_surface * 10) / 10 : 0;
 
-    // Breakdown by cause
+    // Financial damages sum this calendar year
+    const damageAgg = await Fire.aggregate([
+      { $match: { declaration_date: { $gte: yearStart, $lt: yearEnd } } },
+      { $group: { _id: null, total_damage: { $sum: '$degats' } } }
+    ]);
+    const total_damage = damageAgg.length > 0 ? Math.round(damageAgg[0].total_damage) : 0;
+
+    // Breakdown by cause this calendar year
     const causeGroup = await Fire.aggregate([
+      { $match: { declaration_date: { $gte: yearStart, $lt: yearEnd } } },
       { $group: { _id: '$cause', cnt: { $sum: 1 } } }
     ]);
     const by_cause = { INC: 0, CON: 0, Unknown: 0 };
     causeGroup.forEach(g => { if (g._id in by_cause) by_cause[g._id] = g.cnt; });
 
-    // Heatmap points
+    // Vegetation breakdown this calendar year
+    const vegAgg = await Fire.aggregate([
+      { $match: { declaration_date: { $gte: yearStart, $lt: yearEnd } } },
+      {
+        $group: {
+          _id: null,
+          foret: { $sum: '$tot_foret' },
+          maquis: { $sum: '$tot_maquis' },
+          broussailles: { $sum: '$tot_broussailles' }
+        }
+      }
+    ]);
+    const vegetation_breakdown = vegAgg.length > 0 ? {
+      foret: Math.round(vegAgg[0].foret * 100) / 100,
+      maquis: Math.round(vegAgg[0].maquis * 100) / 100,
+      broussailles: Math.round(vegAgg[0].broussailles * 100) / 100
+    } : { foret: 0, maquis: 0, broussailles: 0 };
+
+    // Average Response Time in hours this calendar year
+    const responseAgg = await Fire.aggregate([
+      {
+        $match: {
+          declaration_date: { $gte: yearStart, $lt: yearEnd },
+          intervention_date: { $ne: null }
+        }
+      },
+      {
+        $project: {
+          decl_date: '$declaration_date',
+          int_date: '$intervention_date',
+          decl_hour: { $ifNull: ['$declaration_hour', 12] },
+          int_hour: { $ifNull: ['$intervention_hour', 12] }
+        }
+      },
+      {
+        $project: {
+          decl_ms: { $add: [ { $toLong: '$decl_date' }, { $multiply: ['$decl_hour', 3600000] } ] },
+          int_ms: { $add: [ { $toLong: '$int_date' }, { $multiply: ['$int_hour', 3600000] } ] }
+        }
+      },
+      {
+        $project: {
+          diff_hours: { $divide: [ { $subtract: ['$int_ms', '$decl_ms'] }, 3600000 ] }
+        }
+      },
+      {
+        $match: {
+          diff_hours: { $gte: 0, $lte: 720 } // Keep it sensible (under 30 days)
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          avg_response: { $avg: '$diff_hours' }
+        }
+      }
+    ]);
+    const avg_response_time = responseAgg.length > 0 ? Math.round(responseAgg[0].avg_response * 10) / 10 : 0;
+
+    // Top reporting channels this calendar year
+    const channelsGroup = await Fire.aggregate([
+      {
+        $match: {
+          signale: { $ne: null, $ne: '' },
+          declaration_date: { $gte: yearStart, $lt: yearEnd }
+        }
+      },
+      { $group: { _id: '$signale', cnt: { $sum: 1 } } },
+      { $sort: { cnt: -1 } },
+      { $limit: 4 }
+    ]);
+    const top_channels = channelsGroup.map(g => ({ channel: g._id, count: g.cnt }));
+
+    // Heatmap points (showing all historical fires for full risk visualization context)
     const heatmapFires = await Fire.find({}, 'forest surf_total').populate('forest', 'latitude longitude');
     const heatmap = heatmapFires
       .filter(f => f.forest?.latitude != null && f.forest?.longitude != null)
@@ -419,11 +570,25 @@ exports.getStats = async (req, res) => {
         intensity: f.surf_total || 1
       }));
 
-    return res.json({ total, this_month, top_zone, total_surface, by_cause, by_status, heatmap });
+    return res.json({
+      total,
+      this_month,
+      active_incidents,
+      top_zone,
+      total_surface,
+      total_damage,
+      by_cause,
+      by_status,
+      vegetation_breakdown,
+      avg_response_time,
+      top_channels,
+      heatmap
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
 };
+
 
 // ── DELETE /api/fires/:id ──────────────────────────────────────────────────────
 exports.deleteFire = async (req, res) => {

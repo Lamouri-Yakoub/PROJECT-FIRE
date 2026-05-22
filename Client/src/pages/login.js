@@ -11,7 +11,7 @@ export function loginPage(container) {
       <div class="login-bg"></div>
       <div class="login-card">
         <div class="login-logo">
-          <span class="icon">🔥</span>
+          <span class="icon" style="color: var(--fire-orange);"><i class="fa-solid fa-fire"></i></span>
           <h1>FireGuard</h1>
           <p>Système de Prédiction des Incendies</p>
         </div>

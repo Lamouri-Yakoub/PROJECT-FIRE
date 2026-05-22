@@ -6,11 +6,95 @@ const SEVERITY_LEVELS = { 1: 'Faible', 2: 'Moyen', 3: 'Élevé', 4: 'Critique' }
 
 // Fire lifecycle stages
 const STAGES = [
-  { key: 'declared',     label: '🔴 Déclaré',       desc: 'Incendie détecté et signalé' },
-  { key: 'investigating',label: '🟠 En cours',       desc: 'Intervention en cours' },
-  { key: 'controlled',   label: '🟡 Maîtrisé',       desc: 'Feu sous contrôle' },
-  { key: 'extinguished', label: '🟢 Éteint',         desc: 'Extinction confirmée' },
+  { key: 'declared',     label: '<i class="fa-solid fa-circle-exclamation" style="color: var(--fire-red); margin-right: 4px;"></i> Déclaré',       desc: 'Incendie détecté et signalé' },
+  { key: 'investigating',label: '<i class="fa-solid fa-fire-burner" style="color: var(--fire-orange); margin-right: 4px;"></i> En cours',       desc: 'Intervention en cours' },
+  { key: 'controlled',   label: '<i class="fa-solid fa-hands-holding-circle" style="color: var(--fire-yellow); margin-right: 4px;"></i> Maîtrisé',       desc: 'Feu sous contrôle' },
+  { key: 'extinguished', label: '<i class="fa-solid fa-circle-check" style="color: var(--risk-low); margin-right: 4px;"></i> Éteint',         desc: 'Extinction confirmée' },
 ];
+
+export function setupTagInput(containerId, placeholderText = "Tapez et appuyez sur Entrée...") {
+  const container = document.getElementById(containerId);
+  if (!container) return null;
+  
+  let tags = [];
+  
+  container.innerHTML = '';
+  container.className = 'tag-input-container';
+  
+  const tagsWrapper = document.createElement('div');
+  tagsWrapper.style.display = 'contents';
+  container.appendChild(tagsWrapper);
+  
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tag-input-field';
+  input.placeholder = placeholderText;
+  container.appendChild(input);
+  
+  function render() {
+    tagsWrapper.innerHTML = '';
+    tags.forEach((tag, index) => {
+      const badge = document.createElement('span');
+      badge.className = 'tag-badge';
+      badge.innerHTML = `
+        ${tag}
+        <button type="button" class="tag-remove" data-index="${index}">&times;</button>
+      `;
+      tagsWrapper.appendChild(badge);
+    });
+    
+    tagsWrapper.querySelectorAll('.tag-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.index);
+        tags.splice(idx, 1);
+        render();
+      });
+    });
+    
+    input.placeholder = tags.length > 0 ? '' : placeholderText;
+  }
+  
+  container.addEventListener('click', () => {
+    input.focus();
+  });
+  
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = input.value.trim().toUpperCase();
+      if (val && !tags.includes(val)) {
+        tags.push(val);
+        input.value = '';
+        render();
+      }
+    } else if (e.key === 'Backspace' && !input.value && tags.length > 0) {
+      tags.pop();
+      render();
+    }
+  });
+  
+  input.addEventListener('blur', () => {
+    const val = input.value.trim().toUpperCase();
+    if (val && !tags.includes(val)) {
+      tags.push(val);
+      input.value = '';
+      render();
+    }
+  });
+  
+  return {
+    getTags: () => tags,
+    setTags: (newTags) => {
+      tags = Array.isArray(newTags) ? [...newTags] : [];
+      render();
+    },
+    clear: () => {
+      tags = [];
+      render();
+    }
+  };
+}
 
 export function addfirePage(container) {
   const layout = document.createElement('div');
@@ -20,13 +104,13 @@ export function addfirePage(container) {
   const main = document.createElement('main');
   main.className = 'main-content';
   main.innerHTML = `
-    <header class="page-header"><h1>➕ Ajouter un incendie</h1></header>
+    <header class="page-header"><h1><i class="fa-solid fa-plus-circle" style="color: var(--fire-orange); margin-right: 8px;"></i> Ajouter un incendie</h1></header>
     <div class="page-body">
 
       <!-- Mode Tabs -->
       <div class="mode-tabs" id="mode-tabs">
-        <button type="button" class="tab-btn active" id="tab-add-fire">➕ Déclarer un incendie</button>
-        <button type="button" class="tab-btn" id="tab-bilan-fire">📊 Bilan après extinction</button>
+        <button type="button" class="tab-btn active" id="tab-add-fire"><i class="fa-solid fa-plus" style="margin-right: 6px;"></i> Déclarer un incendie</button>
+        <button type="button" class="tab-btn" id="tab-bilan-fire"><i class="fa-solid fa-chart-line" style="margin-right: 6px;"></i> Bilan après extinction</button>
       </div>
 
       <div class="addfire-layout" id="addfire-layout">
@@ -36,7 +120,7 @@ export function addfirePage(container) {
           <!-- Section Active Fire (Mode B only) -->
           <section class="form-section" id="section-active-fire" style="display:none; border-color: var(--fire-orange);">
             <div class="section-header">
-              <span class="section-badge" style="background: var(--fire-gradient);">🔍</span>
+              <span class="section-badge" style="background: var(--fire-gradient);"><i class="fa-solid fa-magnifying-glass"></i></span>
               <h3 style="color: var(--fire-orange);">Incendie en cours</h3>
             </div>
             <div class="form-group" style="margin-bottom:0;">
@@ -54,7 +138,7 @@ export function addfirePage(container) {
           <section class="form-section" id="section-discovery">
             <div class="section-header">
               <span class="section-badge">1</span>
-              <h3>🔍 Découverte de l'incendie</h3>
+              <h3><i class="fa-solid fa-magnifying-glass" style="color: var(--fire-orange); margin-right: 6px;"></i> Découverte de l'incendie</h3>
             </div>
             <div class="form-group">
               <label>Forêt *</label>
@@ -149,7 +233,7 @@ export function addfirePage(container) {
           <section class="form-section" id="section-postfire" style="display:none;">
             <div class="section-header">
               <span class="section-badge">2</span>
-              <h3>📊 Bilan après extinction</h3>
+              <h3><i class="fa-solid fa-chart-line" style="color: var(--fire-orange); margin-right: 6px;"></i> Bilan après extinction</h3>
             </div>
 
             <!-- Extinction dates -->
@@ -167,7 +251,7 @@ export function addfirePage(container) {
             <!-- Vegetation surfaces -->
             <div class="form-group">
               <label>Type de végétation (Essence)</label>
-              <input type="text" id="af-essence" placeholder="Ex: CL+MAQ+BRS" />
+              <div id="af-essence-container"></div>
             </div>
             <div class="grid-2col">
               <div class="form-group">
@@ -190,10 +274,10 @@ export function addfirePage(container) {
               </div>
             </div>
 
-            <!-- Organismes & degats -->
+             <!-- Organismes & degats -->
             <div class="form-group">
               <label>Organismes intervenus</label>
-              <input type="text" id="af-organismes" placeholder="Ex: SF+PC+DW+EAPC" />
+              <div id="af-organismes-container"></div>
             </div>
             <div class="form-group">
               <label>Dégâts estimés (DZD)</label>
@@ -201,7 +285,7 @@ export function addfirePage(container) {
             </div>
           </section>
 
-          <button type="button" class="btn-primary" id="btn-save-fire">💾 Enregistrer l'incendie</button>
+          <button type="button" class="btn-primary" id="btn-save-fire"><i class="fa-solid fa-floppy-disk" style="margin-right: 6px;"></i> Enregistrer l'incendie</button>
         </div>
 
         <!-- RIGHT: map -->
@@ -364,6 +448,10 @@ export function addfirePage(container) {
     `;
     document.head.appendChild(style);
   }
+
+  // Initialize tag inputs for Bilan section
+  const essenceTagInput = setupTagInput('af-essence-container', 'Ex: CL, MAQ, BRS');
+  const organismesTagInput = setupTagInput('af-organismes-container', 'Ex: SF, PC, DW');
 
   // ── Load selects from API ────────────────────────────────────────────────────
   let forestsList = [];
@@ -640,7 +728,29 @@ export function addfirePage(container) {
   setTimeout(() => {
     const mapEl = document.getElementById('addfire-map');
     if (mapEl && window.L) {
-      const map = L.map('addfire-map').setView([36.46, 7.43], 8);
+      // Clean up previous instance to prevent SPA container conflicts
+      if (window.addFireMap) {
+        try {
+          window.addFireMap.remove();
+        } catch(e) {
+          console.warn('Failed to remove pre-existing addfire map:', e);
+        }
+      }
+
+      // Bounding box for Wilaya of Guelma, Algeria
+      const guelmaBounds = L.latLngBounds(
+        [36.05, 6.95], // Southwest
+        [36.90, 7.90]  // Northeast
+      );
+
+      const map = L.map('addfire-map', {
+        maxBounds: guelmaBounds,
+        maxBoundsViscosity: 1.0,
+        minZoom: 9,
+        maxZoom: 18
+      }).setView([36.46, 7.43], 10);
+      window.addFireMap = map;
+
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap', maxZoom: 18,
       }).addTo(map);
@@ -649,10 +759,16 @@ export function addfirePage(container) {
       map.on('click', (e) => {
         if (activeMode === 'bilan') return;
         const { lat, lng } = e.latlng;
-        document.getElementById('af-lat').value = lat.toFixed(5);
-        document.getElementById('af-lon').value = lng.toFixed(5);
-        if (marker) marker.setLatLng(e.latlng);
-        else marker = L.marker(e.latlng).addTo(map);
+        
+        // Ensure point clicked is inside Guelma bounds
+        if (guelmaBounds.contains(e.latlng)) {
+          document.getElementById('af-lat').value = lat.toFixed(5);
+          document.getElementById('af-lon').value = lng.toFixed(5);
+          if (marker) marker.setLatLng(e.latlng);
+          else marker = L.marker(e.latlng).addTo(map);
+        } else {
+          showToast("Veuillez sélectionner un point situé à l'intérieur de la wilaya de Guelma", "error");
+        }
       });
 
       setTimeout(() => map.invalidateSize(), 300);
@@ -724,12 +840,12 @@ export function addfirePage(container) {
         status:                'extinguished',
         extinction_date:       extDate,
         extinction_hour:       isNaN(extHour) ? null : extHour,
-        essence:               document.getElementById('af-essence').value       || null,
+        essence:               essenceTagInput.getTags(),
         tot_foret:             parseFloat(document.getElementById('af-tot-foret').value)        || 0,
         tot_maquis:            parseFloat(document.getElementById('af-tot-maquis').value)       || 0,
         tot_broussailles:      parseFloat(document.getElementById('af-tot-broussailles').value) || 0,
         surf_total:            parseFloat(document.getElementById('af-surf-total').value)       || 0,
-        organismes:            document.getElementById('af-organismes').value || null,
+        organismes:            organismesTagInput.getTags(),
         degats:                parseFloat(document.getElementById('af-degats').value) || 0,
       };
 
@@ -738,12 +854,14 @@ export function addfirePage(container) {
         showToast('Bilan après extinction enregistré avec succès !', 'success');
 
         // Reset post-extinction fields
-        ['af-ext-date', 'af-ext-hour', 'af-essence', 'af-tot-foret',
+        ['af-ext-date', 'af-ext-hour', 'af-tot-foret',
          'af-tot-maquis', 'af-tot-broussailles', 'af-surf-total',
-         'af-organismes', 'af-degats'].forEach(id => {
+         'af-degats'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = '';
         });
+        essenceTagInput.clear();
+        organismesTagInput.clear();
 
         // Return to Add Fire Mode A
         tabAddFire.click();

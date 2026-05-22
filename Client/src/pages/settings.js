@@ -12,11 +12,11 @@ export function settingsPage(container) {
   const main = document.createElement('main');
   main.className = 'main-content';
   main.innerHTML = `
-    <header class="page-header"><h1>⚙️ Paramètres</h1></header>
+    <header class="page-header"><h1><i class="fa-solid fa-gears" style="color: var(--fire-orange); margin-right: 8px;"></i> Paramètres</h1></header>
     <div class="page-body">
       <div class="settings-grid">
         <div class="settings-card">
-          <h3>👤 Profil</h3>
+          <h3><i class="fa-solid fa-user-gear" style="color: var(--fire-orange); margin-right: 6px;"></i> Profil</h3>
           <form id="profile-form">
             <div class="form-group">
               <label>Nom d'utilisateur</label>
@@ -30,7 +30,7 @@ export function settingsPage(container) {
           </form>
         </div>
         <div class="settings-card">
-          <h3>🔒 Changer le mot de passe</h3>
+          <h3><i class="fa-solid fa-key" style="color: var(--fire-orange); margin-right: 6px;"></i> Changer le mot de passe</h3>
           <form id="password-form">
             <div class="form-group">
               <label>Mot de passe actuel</label>
@@ -44,16 +44,16 @@ export function settingsPage(container) {
           </form>
         </div>
         <div class="settings-card">
-          <h3>🌐 Langue</h3>
+          <h3><i class="fa-solid fa-language" style="color: var(--fire-orange); margin-right: 6px;"></i> Langue</h3>
           <p style="color:var(--text-secondary);font-size:14px;margin-bottom:16px;">Sélectionnez la langue de l'interface</p>
           <div class="lang-toggle">
-            <button class="lang-btn ${(user.language || 'fr') === 'fr' ? 'active' : ''}" data-lang="fr">🇫🇷 Français</button>
-            <button class="lang-btn ${user.language === 'en' ? 'active' : ''}" data-lang="en">🇬🇧 English</button>
+            <button class="lang-btn ${(user.language || 'fr') === 'fr' ? 'active' : ''}" data-lang="fr"><span style="font-weight: 700; margin-right: 6px;">FR</span> Français</button>
+            <button class="lang-btn ${user.language === 'en' ? 'active' : ''}" data-lang="en"><span style="font-weight: 700; margin-right: 6px;">EN</span> English</button>
           </div>
         </div>
         ${user.role === 'admin' ? `
         <div class="settings-card full-width">
-          <h3>👥 Gestion des utilisateurs</h3>
+          <h3><i class="fa-solid fa-users-gear" style="color: var(--fire-orange); margin-right: 6px;"></i> Gestion des utilisateurs</h3>
           <div id="users-table">
             <div class="page-loading"><div class="spinner"></div></div>
           </div>

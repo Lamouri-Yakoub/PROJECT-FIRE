@@ -4,6 +4,7 @@ const cors = require('cors');
 const axios = require('axios');
 const db = require('./config/db'); // Initializes MongoDB connection
 const { requireAuth } = require('./middleware/auth');
+const Forest = require('./models/Forest');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -99,7 +100,34 @@ app.post('/predict_top', async (req, res) => {
       req.body.weather = await getWeatherDataForDate(req.body.date);
     }
     const response = await axios.post(`${PYTHON_SERVER_URL}/predict_top`, req.body);
-    return res.json(response.data);
+    const results = response.data;
+
+    if (Array.isArray(results)) {
+      const dbForests = await Forest.find({});
+      const forestMap = new Map();
+      dbForests.forEach(f => {
+        if (f.name) {
+          forestMap.set(f.name.toLowerCase().trim(), f);
+        }
+      });
+
+      for (const item of results) {
+        if (item.forest) {
+          const key = item.forest.toLowerCase().trim();
+          const dbForest = forestMap.get(key);
+          if (dbForest) {
+            if (dbForest.latitude != null) {
+              item.latitude = dbForest.latitude;
+            }
+            if (dbForest.longitude != null) {
+              item.longitude = dbForest.longitude;
+            }
+          }
+        }
+      }
+    }
+
+    return res.json(results);
   } catch (err) {
     console.error('[ERROR] /predict_top proxy failed:', err.message);
     const status = err.response?.status || 500;
