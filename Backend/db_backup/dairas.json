@@ -1,0 +1,68 @@
+[
+  {
+    "_id": "6a0f00bdea378465bff643ff",
+    "name": "HAMMAM DEBAGH",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.250Z"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64400",
+    "name": "GUELAAT BOU SBAA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.263Z"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64401",
+    "name": "HAMMAM N'BAIL",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.267Z"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64402",
+    "name": "HELIOPOLIS",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.270Z"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64403",
+    "name": "BOUCHEGOUF",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.274Z"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64404",
+    "name": "GUELMA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.277Z"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64405",
+    "name": "KHEZARA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.279Z"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64406",
+    "name": "OUED ZENATI",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.283Z"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64407",
+    "name": "AIN MAKHLOUF",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.285Z"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64408",
+    "name": "AIN HESSAINIA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.287Z"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64409",
+    "name": "AIN MEKHLOUF",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.290Z"
+  }
+]

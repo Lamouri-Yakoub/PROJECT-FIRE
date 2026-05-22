@@ -1,0 +1,212 @@
+[
+  {
+    "_id": "6a0f00bdea378465bff6440a",
+    "name": "ROKNIA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.293Z",
+    "daira": "6a0f00bdea378465bff643ff"
+  },
+  {
+    "_id": "6a0f00bdea378465bff6440b",
+    "name": "BENI MEZLINE",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.295Z",
+    "daira": "6a0f00bdea378465bff64400"
+  },
+  {
+    "_id": "6a0f00bdea378465bff6440c",
+    "name": "OUED CHEHAM",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.298Z",
+    "daira": "6a0f00bdea378465bff64401"
+  },
+  {
+    "_id": "6a0f00bdea378465bff6440d",
+    "name": "EL FEDJOUDJ",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.301Z",
+    "daira": "6a0f00bdea378465bff64402"
+  },
+  {
+    "_id": "6a0f00bdea378465bff6440e",
+    "name": "MEDJEZ SFA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.303Z",
+    "daira": "6a0f00bdea378465bff64403"
+  },
+  {
+    "_id": "6a0f00bdea378465bff6440f",
+    "name": "BENDJERRAH",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.307Z",
+    "daira": "6a0f00bdea378465bff64404"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64410",
+    "name": "BOUCHEGOUF",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.309Z",
+    "daira": "6a0f00bdea378465bff64403"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64411",
+    "name": "HAMMAM DEBAGH",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.313Z",
+    "daira": "6a0f00bdea378465bff643ff"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64412",
+    "name": "BOUATI MAHMOUD",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.315Z",
+    "daira": "6a0f00bdea378465bff64402"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64413",
+    "name": "DAHOUARA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.318Z",
+    "daira": "6a0f00bdea378465bff64401"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64414",
+    "name": "HAMMAM N'BAILS",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.321Z",
+    "daira": "6a0f00bdea378465bff64401"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64415",
+    "name": "NECHMAYA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.323Z",
+    "daira": "6a0f00bdea378465bff64400"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64416",
+    "name": "HELIOPOLIS",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.326Z",
+    "daira": "6a0f00bdea378465bff64402"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64417",
+    "name": "BOUHAMDANE",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.329Z",
+    "daira": "6a0f00bdea378465bff643ff"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64418",
+    "name": "KHEZARAS",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.331Z",
+    "daira": "6a0f00bdea378465bff64405"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64419",
+    "name": "AIN REGADA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.333Z",
+    "daira": "6a0f00bdea378465bff64406"
+  },
+  {
+    "_id": "6a0f00bdea378465bff6441a",
+    "name": "DJEBALLAH KHEMISSI",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.335Z",
+    "daira": "6a0f00bdea378465bff64400"
+  },
+  {
+    "_id": "6a0f00bdea378465bff6441b",
+    "name": "BOUHACHANA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.337Z",
+    "daira": "6a0f00bdea378465bff64405"
+  },
+  {
+    "_id": "6a0f00bdea378465bff6441c",
+    "name": "AIN SANDEL",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.340Z",
+    "daira": "6a0f00bdea378465bff64405"
+  },
+  {
+    "_id": "6a0f00bdea378465bff6441d",
+    "name": "BORDJ SABAT",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.343Z",
+    "daira": "6a0f00bdea378465bff64406"
+  },
+  {
+    "_id": "6a0f00bdea378465bff6441e",
+    "name": "AIN MAKHLOUF",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.345Z",
+    "daira": "6a0f00bdea378465bff64407"
+  },
+  {
+    "_id": "6a0f00bdea378465bff6441f",
+    "name": "OUED FRAGHA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.347Z",
+    "daira": "6a0f00bdea378465bff64403"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64420",
+    "name": "MEDJEZ AMAR",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.349Z",
+    "daira": "6a0f00bdea378465bff64408"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64421",
+    "name": "HOUARI BOUMEDIENNE",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.351Z",
+    "daira": "6a0f00bdea378465bff64408"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64422",
+    "name": "AIN LARBI",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.353Z",
+    "daira": "6a0f00bdea378465bff64407"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64423",
+    "name": "BELKHEIR",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.354Z",
+    "daira": "6a0f00bdea378465bff64400"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64424",
+    "name": "AIN BEN BEIDA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.357Z",
+    "daira": "6a0f00bdea378465bff64403"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64425",
+    "name": "SELLAOUA ANNOUNA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.360Z",
+    "daira": "6a0f00bdea378465bff64408"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64426",
+    "name": "OUED ZENATI",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.362Z",
+    "daira": "6a0f00bdea378465bff64406"
+  },
+  {
+    "_id": "6a0f00bdea378465bff64427",
+    "name": "GUELAAT BOU SBA",
+    "__v": 0,
+    "created_at": "2026-05-21T12:55:25.364Z",
+    "daira": "6a0f00bdea378465bff64400"
+  }
+]
