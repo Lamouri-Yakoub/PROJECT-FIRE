@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     print("")
     print("=== FireGuard Server ===")
-    print("  URL: http://localhost:5000")
+    print("  URL: http://localhost:5001")
     print("========================")
     print("")
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)

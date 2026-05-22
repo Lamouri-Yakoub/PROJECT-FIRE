@@ -16,6 +16,7 @@ mongoose.connect(MONGODB_URI)
     await seedAdmin();
     await seedForests();
     await seedFires();
+    await updateExtinctionStatusMigration();
   })
   .catch((err) => {
     console.error('[ERROR] MongoDB connection failed:', err.message);
@@ -218,6 +219,25 @@ async function seedForests() {
     }
   } catch (err) {
     console.error('[WARN] Seeding forests/dairas/communes failed:', err.message);
+  }
+}
+
+async function updateExtinctionStatusMigration() {
+  try {
+    const result = await Fire.updateMany(
+      {
+        extinction_date: { $ne: null },
+        status: { $ne: 'extinguished' }
+      },
+      {
+        $set: { status: 'extinguished' }
+      }
+    );
+    if (result.modifiedCount > 0) {
+      console.log(`[MIGRATION] Updated ${result.modifiedCount} fires with extinction dates to 'extinguished' status.`);
+    }
+  } catch (err) {
+    console.error('[WARN] Extinction status migration failed:', err.message);
   }
 }
 

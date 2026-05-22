@@ -30,12 +30,22 @@ export const api = {
     const body = { forest };
     if (date) body.date = date;
     if (weather) body.weather = weather;
-    return fetch('/predict_forest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+    return fetch('/predict_forest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(async r => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || 'Erreur de prédiction');
+        return data;
+      });
   },
   predictTop: (date) => {
     const body = {};
     if (date) body.date = date;
-    return fetch('/predict_top', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+    return fetch('/predict_top', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(async r => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || 'Erreur de prédiction top');
+        return data;
+      });
   },
 
   // Weather (no auth needed)

@@ -33,3 +33,53 @@ exports.getCurrentWeather = async (req, res) => {
     });
   }
 };
+
+// ── GET /api/weather — proxy open-meteo archive API ───────────────────────────
+exports.getWeather = async (req, res) => {
+  try {
+    const { lat, lon, date } = req.query;
+    if (!lat || !lon || !date) {
+      return res.status(400).json({ error: 'lat, lon and date are required' });
+    }
+
+    const url = (
+      'https://archive-api.open-meteo.com/v1/archive' +
+      `?latitude=${lat}` +
+      `&longitude=${lon}` +
+      `&start_date=${date}` +
+      `&end_date=${date}` +
+      '&hourly=temperature_2m,wind_speed_10m,wind_direction_10m' +
+      '&timezone=Europe%2FLondon'
+    );
+
+    const { data } = await axios.get(url, { timeout: 10000 });
+
+    // Pick the midday value (hour 12) or first available
+    const hourly = data.hourly || {};
+    const times  = hourly.time || [];
+    let idx = times.findIndex(t => t.endsWith('T12:00'));
+    if (idx === -1) idx = 0;
+
+    const temperature    = hourly.temperature_2m?.[idx]        ?? null;
+    const windSpeedRaw   = hourly.wind_speed_10m?.[idx]        ?? null;
+    const windDegrees    = hourly.wind_direction_10m?.[idx]    ?? null;
+
+    // Convert wind degrees to compass direction
+    const degToCompass = (deg) => {
+      if (deg == null) return null;
+      const dirs = ['N','NE','E','SE','S','SO','O','NO'];
+      return dirs[Math.round(deg / 45) % 8];
+    };
+
+    return res.json({
+      temperature,
+      wind_speed:     windSpeedRaw !== null ? Math.round(windSpeedRaw * 10) / 10 : null,
+      wind_direction: degToCompass(windDegrees),
+      wind_degrees:   windDegrees,
+      recorded_at:    times[idx] || null
+    });
+  } catch (err) {
+    console.error('[weather] Error fetching open-meteo:', err.message);
+    return res.status(502).json({ error: 'Failed to fetch weather data: ' + err.message });
+  }
+};

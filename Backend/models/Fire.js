@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const fireSchema = new mongoose.Schema({
+  status: {
+    type: String,
+    enum: ['declared', 'investigating', 'controlled', 'extinguished'],
+    default: 'declared'
+  },
   // ── Relations ───────────────────────────────────────────────────────────────
   forest:   { type: mongoose.Schema.Types.ObjectId, ref: 'Forest',  required: true },
   commune:  { type: mongoose.Schema.Types.ObjectId, ref: 'Commune', default: null },
